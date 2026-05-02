@@ -60,8 +60,8 @@ export default function AppointmentsPage() {
                   </div>
                </div>
                <div className="grid grid-cols-7 gap-2 text-center mb-4">
-                  {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map(d => (
-                    <span key={d} className="text-[10px] font-black text-gray-300 uppercase">{d}</span>
+                  {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((d, i) => (
+                    <span key={`${d}-${i}`} className="text-[10px] font-black text-gray-300 uppercase">{d}</span>
                   ))}
                </div>
                <div className="grid grid-cols-7 gap-2">
