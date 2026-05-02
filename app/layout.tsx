@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { Cairo } from 'next/font/google';
+import { Analytics } from '@vercel/analytics/next';
 import './globals.css';
 
 const cairo = Cairo({
@@ -18,6 +19,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="ar" dir="rtl" className={`${cairo.variable}`}>
       <body className="font-cairo antialiased bg-gray-50 text-gray-900" suppressHydrationWarning>
         {children}
+        <Analytics />
       </body>
     </html>
   );
