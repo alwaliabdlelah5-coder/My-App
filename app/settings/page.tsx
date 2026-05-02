@@ -104,7 +104,13 @@ export default function SettingsPage() {
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: i * 0.05 }}
                 key={cat.id}
-                onClick={() => setActiveCategory(cat.id)}
+                onClick={() => {
+                  if (cat.id === 'automation') {
+                    window.location.href = '/settings/devops';
+                  } else {
+                    setActiveCategory(cat.id);
+                  }
+                }}
                 className={cn(
                   "w-full text-right p-6 rounded-[2.5rem] border-2 transition-all flex items-center gap-5 group relative overflow-hidden",
                   activeCategory === cat.id 

@@ -15,7 +15,8 @@ import {
   Plus, 
   Download,
   AlertCircle,
-  Clock
+  Clock,
+  Target
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '@/lib/utils';

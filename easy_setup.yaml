@@ -1,0 +1,23 @@
+# Medical Center Global Configuration
+project:
+  name: medical_center
+environments:
+  dev:
+    flavor: development
+    firebase_project_id: medical-center-dev
+  prod:
+    flavor: production
+    firebase_project_id: medical-center-prod
+platforms:
+  android: true
+  web: true
+  windows: true
+cicd:
+  provider: github_actions
+  workflows:
+    - type: test
+      runs-on: ubuntu-latest
+    - type: build_android
+      runs-on: ubuntu-latest
+    - type: deploy_web
+      runs-on: ubuntu-latest

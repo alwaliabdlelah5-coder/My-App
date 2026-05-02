@@ -14,11 +14,13 @@ import {
   ClipboardList,
   Stethoscope,
   Package,
-  CreditCard
+  CreditCard,
+  ChevronLeft
 } from 'lucide-react';
 import Link from 'next/link';
 import { motion } from 'motion/react';
 import { cn } from '@/lib/utils';
+import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
 const stats = [
   { 
@@ -59,6 +61,16 @@ const upcomingAppointments = [
   { id: 1, name: 'سناء علي عبد الله', time: '10:30 ص', type: 'استشارة قلبية', doctor: 'د. خالد محمد', status: 'منتظر' },
   { id: 2, name: 'محمد حسن صالح', time: '11:00 ص', type: 'فحص عام', doctor: 'د. سارة أحمد', status: 'مؤكد' },
   { id: 3, name: 'ليلى مرشد السعدي', time: '11:15 ص', type: 'متابعة سكري', doctor: 'د. خالد محمد', status: 'مؤكد' },
+];
+
+const growthData = [
+  { day: 'Sat', patients: 12 },
+  { day: 'Sun', patients: 18 },
+  { day: 'Mon', patients: 15 },
+  { day: 'Tue', patients: 22 },
+  { day: 'Wed', patients: 30 },
+  { day: 'Thu', patients: 25 },
+  { day: 'Fri', patients: 10 },
 ];
 
 export default function Dashboard() {
@@ -139,7 +151,52 @@ export default function Dashboard() {
         {/* Main Sections Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Upcoming Appointments */}
-          <div className="lg:col-span-2 space-y-6">
+          <div className="lg:col-span-2 space-y-8">
+            <div className="bg-white rounded-[2.5rem] border shadow-sm p-8">
+               <div className="flex items-center justify-between mb-8">
+                  <h3 className="text-xl font-black italic tracking-tighter uppercase font-mono">Patient Flow Analytics</h3>
+                  <div className="flex gap-2">
+                     <span className="flex items-center gap-2 text-[10px] font-black text-gray-400 uppercase italic">
+                        <div className="w-2 h-2 rounded-full bg-primary" /> Daily Load
+                     </span>
+                  </div>
+               </div>
+               <div className="h-[300px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                     <BarChart data={growthData}>
+                        <XAxis 
+                          dataKey="day" 
+                          axisLine={false} 
+                          tickLine={false} 
+                          tick={{ fontSize: 10, fontWeight: 900, fill: '#94a3b8' }} 
+                        />
+                        <Tooltip 
+                          cursor={{ fill: 'transparent' }}
+                          content={({ active, payload }) => {
+                            if (active && payload && payload.length) {
+                              return (
+                                <div className="bg-gray-900 text-white p-4 rounded-2xl shadow-xl font-black italic text-xs tracking-widest uppercase animate-in fade-in zoom-in-95 duration-200">
+                                  {payload[0].value} PATIENTS
+                                </div>
+                              );
+                            }
+                            return null;
+                          }}
+                        />
+                        <Bar dataKey="patients" radius={[10, 10, 10, 10]} barSize={40}>
+                           {growthData.map((entry, index) => (
+                              <Cell 
+                                key={`cell-${index}`} 
+                                fill={index === 4 ? '#2563eb' : '#f1f5f9'} 
+                                className="transition-all hover:opacity-80"
+                              />
+                           ))}
+                        </Bar>
+                     </BarChart>
+                  </ResponsiveContainer>
+               </div>
+            </div>
+
             <div className="bg-white rounded-3xl border shadow-sm overflow-hidden">
               <div className="p-6 border-b flex items-center justify-between">
                 <h2 className="font-bold text-xl flex items-center gap-2">
@@ -180,37 +237,6 @@ export default function Dashboard() {
                 </table>
               </div>
             </div>
-
-            {/* Quick Actions / Info Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="bg-gradient-to-br from-primary to-blue-700 p-8 rounded-3xl text-white shadow-xl shadow-primary/20 relative overflow-hidden group">
-                <div className="relative z-10">
-                  <h3 className="font-bold text-2xl">إجمالي التقارير</h3>
-                  <p className="mt-2 text-white/80 opacity-90 leading-relaxed font-light">
-                    تم إنشاء ومراجعة 124 تقريراً طبياً اليوم بنسبة زيادة 15٪ عن الأسبوع الماضي.
-                  </p>
-                  <button className="mt-6 bg-white text-primary px-6 py-2.5 rounded-2xl font-bold text-sm tracking-tight hover:bg-gray-100 transition-all flex items-center gap-2">
-                    عرض التحليلات
-                    <ArrowUpRight className="w-4 h-4" />
-                  </button>
-                </div>
-                <Activity className="absolute -bottom-10 -left-10 w-48 h-48 text-white/5 group-hover:scale-110 transition-transform duration-500" />
-              </div>
-
-              <div className="bg-white p-8 rounded-3xl border shadow-sm flex flex-col justify-center items-center text-center space-y-4">
-                <div className="w-16 h-16 bg-emerald-50 text-emerald-500 rounded-2xl flex items-center justify-center">
-                  <TrendingUp className="w-8 h-8" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-xl">كفاءة الأداء</h3>
-                  <p className="text-gray-500 text-sm mt-1">متوسط وقت انتظار المريض انخفض بمعدل 4 دقائق هذا الشهر.</p>
-                </div>
-                <div className="flex gap-2 font-bold text-emerald-600">
-                  <span className="text-2xl tracking-tighter">94%</span>
-                  <Activity className="w-5 h-5 self-center" />
-                </div>
-              </div>
-            </div>
           </div>
 
           {/* Side Panels */}
@@ -218,11 +244,11 @@ export default function Dashboard() {
             {/* Real-time Queue */}
             <div className="bg-white rounded-3xl border shadow-sm overflow-hidden">
               <div className="p-6 border-b flex items-center justify-between bg-orange-50/50">
-                <h2 className="font-bold flex items-center gap-2">
-                  <ClipboardList className="w-5 h-5 text-orange-500" />
+                <h2 className="font-bold flex items-center gap-2 text-xs uppercase tracking-widest italic text-orange-600">
+                  <ClipboardList className="w-4 h-4" />
                   قائمة الانتظار
                 </h2>
-                <span className="bg-orange-500 text-white text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">8 حالات</span>
+                <span className="bg-orange-500 text-white text-[8px] px-2 py-0.5 rounded-full font-black uppercase tracking-wider italic">8 CASES</span>
               </div>
               <div className="p-4 space-y-3">
                 {[
@@ -231,48 +257,58 @@ export default function Dashboard() {
                   { name: 'هند علي محمد', time: '3 دقائق', type: 'عادي' },
                   { name: 'سناء مصلح', time: 'دقيقة واحدة', type: 'VIP' }
                 ].map((item, i) => (
-                  <div key={i} className="flex items-center gap-4 p-3 hover:bg-gray-50 rounded-2xl transition-all cursor-pointer border border-transparent hover:border-gray-100">
-                    <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center text-sm font-bold text-gray-500">
-                      {i + 1}
+                  <div key={i} className="flex items-center gap-4 p-4 hover:bg-gray-50 rounded-[1.5rem] transition-all cursor-pointer border border-transparent hover:border-gray-100 group">
+                    <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center text-xs font-black text-gray-400 group-hover:bg-primary group-hover:text-white transition-all">
+                      {String(i + 1).padStart(2, '0')}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-bold text-gray-900 truncate">{item.name}</p>
-                      <p className="text-xs text-gray-500">منذ {item.time}</p>
+                      <p className="font-black text-gray-900 truncate tracking-tighter italic leading-none">{item.name}</p>
+                      <p className="text-[10px] text-gray-400 font-bold uppercase mt-1">Wait: {item.time}</p>
                     </div>
                     <div className={cn(
-                      "text-[10px] font-bold px-2 py-1 rounded-lg",
-                      item.type === 'عاجل' ? "bg-red-50 text-red-500" :
-                      item.type === 'VIP' ? "bg-indigo-50 text-indigo-500" :
-                      "bg-orange-50 text-orange-500"
+                      "text-[8px] font-black px-2 py-0.5 rounded italic uppercase tracking-widest transition-all",
+                      item.type === 'عاجل' ? "bg-rose-500 text-white" :
+                      item.type === 'VIP' ? "bg-indigo-500 text-white" :
+                      "bg-orange-500 text-white"
                     )}>
                       {item.type}
                     </div>
                   </div>
                 ))}
-                <button className="w-full mt-2 py-3 text-sm font-bold text-gray-400 hover:text-primary transition-colors border-t border-dashed">
-                  عرض القائمة الكاملة
-                </button>
+                <div className="pt-4 border-t border-dashed">
+                  <Link href="/queue">
+                    <button className="w-full py-3 text-[10px] font-black text-gray-400 uppercase tracking-widest hover:text-primary transition-colors flex items-center justify-center gap-2 group">
+                      MANAGE FULL QUEUE
+                      <ChevronLeft className="w-3 h-3 group-hover:translate-x-[-2px] transition-transform" />
+                    </button>
+                  </Link>
+                </div>
               </div>
             </div>
 
             {/* Smart Insights */}
-            <div className="bg-gray-900 rounded-3xl p-6 text-white space-y-4 relative overflow-hidden">
+            <div className="bg-gray-900 rounded-[2.5rem] p-8 text-white space-y-4 relative overflow-hidden group">
               <div className="relative z-10">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 bg-white/10 rounded-lg">
-                    <Activity className="w-5 h-5 text-blue-400" />
+                  <div className="p-3 bg-white/5 rounded-2xl">
+                    <Activity className="w-6 h-6 text-primary" />
                   </div>
-                  <h3 className="font-bold tracking-tight">تنبيهات المخزون</h3>
+                  <h3 className="font-black italic tracking-tighter text-xl">Stock Alert</h3>
                 </div>
-                <p className="text-sm text-gray-400 leading-relaxed mt-4">
-                  هناك 3 دُفعات من <span className="text-blue-400 font-bold">&quot;الأوجمنتين&quot;</span> ستنتهي صلاحيتها الأسبوع القادم. يرجى مراجعة الصيدلية.
+                <p className="text-sm text-white/40 leading-relaxed mt-6 font-bold uppercase tracking-tight italic">
+                  Critical shortage detected for <span className="text-primary">&quot;Augmentin 625mg&quot;</span>. Only 12 units remaining in central pharmacy.
                 </p>
-                <div className="flex gap-2 mt-4">
-                  <span className="text-[10px] bg-red-500/20 text-red-400 px-2 py-0.5 rounded-full font-bold uppercase">عاجل</span>
-                  <span className="text-[10px] bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded-full font-bold uppercase tracking-widest">PROXIMITY</span>
+                <div className="flex gap-2 mt-8">
+                  <span className="text-[10px] bg-rose-500/20 text-rose-500 px-3 py-1 rounded-lg font-black uppercase italic tracking-widest border border-rose-500/30">Immediate Action</span>
+                  <span className="text-[10px] bg-white/5 text-white/40 px-3 py-1 rounded-lg font-black uppercase italic tracking-widest border border-white/5">PROXIMITY</span>
                 </div>
+                <Link href="/pharmacy" className="block mt-10">
+                  <button className="w-full py-4 bg-white text-gray-900 rounded-2xl font-black italic tracking-tighter uppercase text-sm hover:bg-primary hover:text-white transition-all shadow-xl shadow-black/20">
+                    Restock Inventory
+                  </button>
+                </Link>
               </div>
-              <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 blur-3xl rounded-full" />
+              <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 blur-[100px] rounded-full group-hover:bg-primary/20 transition-all duration-700" />
             </div>
           </div>
         </div>

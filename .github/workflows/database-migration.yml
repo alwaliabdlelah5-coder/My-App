@@ -1,0 +1,15 @@
+name: Database Migration
+on:
+  push: { branches: [main, staging] }
+  pull_request: { paths: ['migrations/**'] }
+jobs:
+  apply-migrations:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_PROD_DB: ${{ secrets.SUPABASE_PROD_DB }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply Migrations with Flyway
+        uses: docker://flyway/flyway
+        with:
+          args: -url="${{ secrets.DATABASE_URL }}" -user="${{ secrets.DB_USER }}" -password="${{ secrets.DB_PASS }}" migrate
