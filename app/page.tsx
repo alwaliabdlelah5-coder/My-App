@@ -22,47 +22,6 @@ import { motion } from 'motion/react';
 import { cn } from '@/lib/utils';
 import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
-const stats = [
-  { 
-    name: 'المرضى اليوم', 
-    value: '42', 
-    trend: '+12%', 
-    trendUp: true, 
-    icon: Users,
-    color: 'blue'
-  },
-  { 
-    name: 'المواعيد القادمة', 
-    value: '24', 
-    trend: '3 غياب', 
-    trendUp: false, 
-    icon: Calendar,
-    color: 'emerald'
-  },
-  { 
-    name: 'الإيرادات اليومية', 
-    value: '12,450 ر.ي', 
-    trend: '+8%', 
-    trendUp: true, 
-    icon: TrendingUp,
-    color: 'indigo'
-  },
-  { 
-    name: 'حالات في الانتظار', 
-    value: '8', 
-    trend: 'متوسط 15 د', 
-    trendUp: true, 
-    icon: Clock,
-    color: 'orange'
-  },
-];
-
-const upcomingAppointments = [
-  { id: 1, name: 'سناء علي عبد الله', time: '10:30 ص', type: 'استشارة قلبية', doctor: 'د. خالد محمد', status: 'منتظر' },
-  { id: 2, name: 'محمد حسن صالح', time: '11:00 ص', type: 'فحص عام', doctor: 'د. سارة أحمد', status: 'مؤكد' },
-  { id: 3, name: 'ليلى مرشد السعدي', time: '11:15 ص', type: 'متابعة سكري', doctor: 'د. خالد محمد', status: 'مؤكد' },
-];
-
 const growthData = [
   { day: 'Sat', patients: 12 },
   { day: 'Sun', patients: 18 },
@@ -73,7 +32,71 @@ const growthData = [
   { day: 'Fri', patients: 10 },
 ];
 
+import { usePatients } from '@/hooks/use-patients';
+import { useAppointments } from '@/hooks/use-appointments';
+import { useFinance } from '@/hooks/use-finance';
+import { useQueue } from '@/hooks/use-queue';
+import { usePharmacy } from '@/hooks/use-pharmacy';
+
 export default function Dashboard() {
+  const { patients: livePatients } = usePatients();
+  const { appointments: liveApps, loading: appsLoading } = useAppointments(new Date().toISOString().split('T')[0]);
+  const { getStats: getFinanceStats } = useFinance();
+  const { queue: liveQueue } = useQueue();
+  const { inventory } = usePharmacy();
+  
+  const finStats = getFinanceStats();
+
+  const stats = [
+    { 
+      name: 'إجمالي المرضى', 
+      value: livePatients.length > 0 ? livePatients.length.toString() : '42', 
+      trend: '+12%', 
+      trendUp: true, 
+      icon: Users,
+      color: 'blue'
+    },
+    { 
+      name: 'مواعيد اليوم', 
+      value: liveApps.length > 0 ? liveApps.length.toString() : '24', 
+      trend: '3 غياب', 
+      trendUp: false, 
+      icon: Calendar,
+      color: 'emerald'
+    },
+    { 
+      name: 'الإيرادات اليومية', 
+      value: `${finStats.income.toLocaleString()} ر.ي`, 
+      trend: '+8%', 
+      trendUp: true, 
+      icon: TrendingUp,
+      color: 'indigo'
+    },
+    { 
+      name: 'حالات في الانتظار', 
+      value: liveQueue.filter(q => q.status === 'waiting').length.toString(), 
+      trend: 'متوسط 15 د', 
+      trendUp: true, 
+      icon: Clock,
+      color: 'orange'
+    },
+  ];
+
+  const upcomingAppointments = liveApps.length > 0 ? liveApps.slice(0, 3).map(app => ({
+    id: app.id,
+    name: app.patientName,
+    time: app.startTime,
+    type: app.type,
+    doctor: app.doctorName,
+    status: app.status === 'waiting' ? 'منتظر' : 'مؤكد'
+  })) : [
+    { id: 1, name: 'سناء علي عبد الله', time: '10:30 ص', type: 'استشارة قلبية', doctor: 'د. خالد محمد', status: 'منتظر' },
+    { id: 2, name: 'محمد حسن صالح', time: '11:00 ص', type: 'فحص عام', doctor: 'د. سارة أحمد', status: 'مؤكد' },
+    { id: 3, name: 'ليلى مرشد السعدي', time: '11:15 ص', type: 'متابعة سكري', doctor: 'د. خالد محمد', status: 'مؤكد' },
+  ];
+
+  const criticalStock = inventory.find(i => i.stock < 15);
+
   return (
     <Sidebar>
       <div className="space-y-12">
@@ -248,30 +271,17 @@ export default function Dashboard() {
                   <ClipboardList className="w-4 h-4" />
                   قائمة الانتظار
                 </h2>
-                <span className="bg-orange-500 text-white text-[8px] px-2 py-0.5 rounded-full font-black uppercase tracking-wider italic">8 CASES</span>
+                <span className="bg-orange-500 text-white text-[8px] px-2 py-0.5 rounded-full font-black uppercase tracking-wider italic">{liveQueue.filter(q => q.status === 'waiting').length} CASES</span>
               </div>
               <div className="p-4 space-y-3">
-                {[
-                  { name: 'علي فهد سالم', time: '12 دقيقة', type: 'عادي' },
-                  { name: 'جابر يحيى', time: '5 دقائق', type: 'عاجل' },
-                  { name: 'هند علي محمد', time: '3 دقائق', type: 'عادي' },
-                  { name: 'سناء مصلح', time: 'دقيقة واحدة', type: 'VIP' }
-                ].map((item, i) => (
-                  <div key={i} className="flex items-center gap-4 p-4 hover:bg-gray-50 rounded-[1.5rem] transition-all cursor-pointer border border-transparent hover:border-gray-100 group">
+                {liveQueue.filter(q => q.status === 'waiting').slice(0, 4).map((item, i) => (
+                  <div key={item.id} className="flex items-center gap-4 p-4 hover:bg-gray-50 rounded-[1.5rem] transition-all cursor-pointer border border-transparent hover:border-gray-100 group">
                     <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center text-xs font-black text-gray-400 group-hover:bg-primary group-hover:text-white transition-all">
                       {String(i + 1).padStart(2, '0')}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-black text-gray-900 truncate tracking-tighter italic leading-none">{item.name}</p>
-                      <p className="text-[10px] text-gray-400 font-bold uppercase mt-1">Wait: {item.time}</p>
-                    </div>
-                    <div className={cn(
-                      "text-[8px] font-black px-2 py-0.5 rounded italic uppercase tracking-widest transition-all",
-                      item.type === 'عاجل' ? "bg-rose-500 text-white" :
-                      item.type === 'VIP' ? "bg-indigo-500 text-white" :
-                      "bg-orange-500 text-white"
-                    )}>
-                      {item.type}
+                      <p className="font-black text-gray-900 truncate tracking-tighter italic leading-none">{item.patientName}</p>
+                      <p className="text-[10px] text-gray-400 font-bold uppercase mt-1">Status: {item.status}</p>
                     </div>
                   </div>
                 ))}
@@ -296,7 +306,11 @@ export default function Dashboard() {
                   <h3 className="font-black italic tracking-tighter text-xl">Stock Alert</h3>
                 </div>
                 <p className="text-sm text-white/40 leading-relaxed mt-6 font-bold uppercase tracking-tight italic">
-                  Critical shortage detected for <span className="text-primary">&quot;Augmentin 625mg&quot;</span>. Only 12 units remaining in central pharmacy.
+                  {criticalStock ? (
+                    <>Critical shortage detected for <span className="text-primary">&quot;{criticalStock.name}&quot;</span>. Only {criticalStock.stock} units remaining.</>
+                  ) : (
+                    <>Inventory levels are within safe parameters. No critical shortages detected.</>
+                  )}
                 </p>
                 <div className="flex gap-2 mt-8">
                   <span className="text-[10px] bg-rose-500/20 text-rose-500 px-3 py-1 rounded-lg font-black uppercase italic tracking-widest border border-rose-500/30">Immediate Action</span>

@@ -19,7 +19,9 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '@/lib/utils';
 
-const appointments = [
+import { useAppointments } from '@/hooks/use-appointments';
+
+const initialAppointments = [
   { id: '1', patient: 'عبدالعزيز العتيبي', doctor: 'د. سارة خالد', service: 'استشارة عامة', time: '10:00 AM', status: 'confirmed', type: 'new' },
   { id: '2', patient: 'مريم الصنعاني', doctor: 'د. علي يحيى', service: 'فحص دوري', time: '10:30 AM', status: 'waiting', type: 'follow_up' },
   { id: '3', patient: 'ياسين منصور', doctor: 'د. أحمد المحمدي', service: 'متابعة سكري', time: '11:15 AM', status: 'cancelled', type: 'urgent' },
@@ -29,6 +31,18 @@ const appointments = [
 export default function AppointmentsPage() {
   const [viewMode, setViewMode] = useState<'day' | 'week' | 'month'>('day');
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const dateString = selectedDate.toISOString().split('T')[0];
+  const { appointments: liveApps, loading } = useAppointments(dateString);
+
+  const displayAppointments = loading ? initialAppointments : (liveApps.length > 0 ? liveApps.map(a => ({
+    id: a.id,
+    patient: a.patientName,
+    doctor: a.doctorName,
+    service: a.type,
+    time: a.startTime,
+    status: a.status,
+    type: a.type
+  })) : initialAppointments);
 
   return (
     <Sidebar>
@@ -123,7 +137,7 @@ export default function AppointmentsPage() {
 
                 <div className="flex-1 overflow-y-auto">
                    <div className="divide-y divide-gray-100">
-                      {appointments.map((app, i) => (
+                      {displayAppointments.map((app, i) => (
                         <motion.div 
                           key={app.id} 
                           initial={{ opacity: 0, x: 20 }}

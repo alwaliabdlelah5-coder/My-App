@@ -18,7 +18,9 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '@/lib/utils';
 
-const queue = [
+import { useQueue } from '@/hooks/use-queue';
+
+const initialQueue = [
   { id: 'Q-101', patient: 'يحيى صالح', doctor: 'د. سارة خالد', status: 'waiting', priority: 1, waitingTime: '15 min' },
   { id: 'Q-102', patient: 'هناء محمد', doctor: 'د. علي يحيى', status: 'in_progress', priority: 2, waitingTime: '45 min' },
   { id: 'Q-103', patient: 'عبدالله ناصر', doctor: 'د. سارة خالد', status: 'waiting', priority: 3, waitingTime: '5 min' },
@@ -27,7 +29,21 @@ const queue = [
 ];
 
 export default function QueuePage() {
+  const { queue: liveQueue, loading, updateQueueStatus } = useQueue();
   const [activeDoctor, setActiveDoctor] = useState('All');
+
+  const displayQueue: any[] = loading ? initialQueue : (liveQueue.length > 0 ? liveQueue.map(q => ({
+    id: q.id,
+    patient: q.patientName,
+    doctor: q.doctorName,
+    status: q.status,
+    priority: q.priority,
+    waitingTime: 'Real-time'
+  })) : initialQueue);
+  
+  const filteredQueue = activeDoctor === 'All' 
+    ? displayQueue 
+    : displayQueue.filter(q => q.doctor === activeDoctor);
   
   return (
     <Sidebar>
@@ -71,7 +87,7 @@ export default function QueuePage() {
                     <div className="w-8 h-1 bg-amber-200 rounded-full" />
                  </div>
                  <div className="space-y-4">
-                    {queue.filter(q => q.status === 'waiting').map((item, i) => (
+                    {filteredQueue.filter(q => q.status === 'waiting').map((item, i) => (
                       <QueueItem key={item.id} item={item} />
                     ))}
                  </div>
@@ -84,7 +100,7 @@ export default function QueuePage() {
                     <div className="w-8 h-1 bg-blue-200 rounded-full" />
                  </div>
                  <div className="space-y-4">
-                    {queue.filter(q => q.status === 'in_progress').map((item, i) => (
+                    {filteredQueue.filter(q => q.status === 'in_progress').map((item, i) => (
                       <QueueItem key={item.id} item={item} active />
                     ))}
                  </div>
@@ -97,7 +113,7 @@ export default function QueuePage() {
                     <div className="w-8 h-1 bg-emerald-200 rounded-full" />
                  </div>
                  <div className="space-y-4">
-                    {queue.filter(q => q.status === 'completed').map((item, i) => (
+                    {filteredQueue.filter(q => q.status === 'completed').map((item, i) => (
                       <QueueItem key={item.id} item={item} completed />
                     ))}
                  </div>

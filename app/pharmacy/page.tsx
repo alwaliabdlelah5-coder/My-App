@@ -19,17 +19,8 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '@/lib/utils';
 
-interface Drug {
-  id: string;
-  name: string;
-  scientificName: string;
-  category: string;
-  stock: number;
-  expiry: string;
-  price: string;
-  isNearingExpiry: boolean;
-  brandNames: string[];
-}
+import { usePharmacy, type Drug } from '@/hooks/use-pharmacy';
+import { useFinance } from '@/hooks/use-finance';
 
 const pharmacyStats = [
   { name: 'إجمالي الأصناف', value: '425', icon: Package, color: 'blue' },
@@ -38,7 +29,7 @@ const pharmacyStats = [
   { name: 'المبيعات اليومية', value: '85,400 ر.ي', icon: TrendingUp, color: 'indigo' },
 ];
 
-const inventory: Drug[] = [
+const initialInventory: Drug[] = [
   { id: '1', name: 'أوجمنتين (Augmentin)', scientificName: 'Amoxicillin/Clavulanic acid', category: 'مضادات حيوية', stock: 45, expiry: '2024-06-15', price: '4500 ر.ي', isNearingExpiry: true, brandNames: ['أموكسيدار', 'موكسيلين'] },
   { id: '2', name: 'بنادول (Panadol)', scientificName: 'Paracetamol', category: 'مسكنات', stock: 120, expiry: '2026-10-20', price: '1200 ر.ي', isNearingExpiry: false, brandNames: ['سيتامول', 'براسيتامول'] },
   { id: '3', name: 'جلوكوفاج (Glucophage)', scientificName: 'Metformin', category: 'أدوية سكري', stock: 30, expiry: '2024-08-01', price: '3200 ر.ي', isNearingExpiry: false, brandNames: ['ميتفورمين اليمن'] },
@@ -52,15 +43,56 @@ const getStockColor = (stock: number) => {
 };
 
 export default function PharmacyPage() {
+  const { inventory: liveInventory, loading, updateStock } = usePharmacy();
+  const { addTransaction } = useFinance();
   const [activeTab, setActiveTab] = useState<'inventory' | 'dispensing' | 'alerts'>('inventory');
   const [searchQuery, setSearchQuery] = useState('');
   const [dispenseTarget, setDispenseTarget] = useState('');
   const [selectedDrug, setSelectedDrug] = useState<Drug | null>(null);
+  const [dispenseAmount, setDispenseAmount] = useState(1);
 
-  const filteredInventory = inventory.filter(drug => 
+  const displayInventory = loading ? initialInventory : (liveInventory.length > 0 ? liveInventory : initialInventory);
+
+  const filteredInventory = displayInventory.filter(drug => 
     drug.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
     drug.scientificName.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  const handleConfirmDispense = async () => {
+    if (!selectedDrug || !dispenseTarget) {
+      alert('الرجاء اختيار الدواء والمريض');
+      return;
+    }
+
+    if (selectedDrug.stock < dispenseAmount) {
+      alert('المخزون غير كافٍ');
+      return;
+    }
+
+    try {
+      // 1. Update Stock
+      await updateStock(selectedDrug.id, selectedDrug.stock - dispenseAmount);
+
+      // 2. Add Finance Transaction
+      const priceVal = parseInt(selectedDrug.price.replace(/[^\d]/g, '')) || 0;
+      await addTransaction({
+        type: 'income',
+        category: 'الصيدلية',
+        amount: priceVal * dispenseAmount,
+        description: `صرف ${selectedDrug.name} لـ ${dispenseTarget}`,
+        method: 'cash'
+      });
+
+      alert('تم صرف الدواء بنجاح وتسجيل العملية المالية');
+      setActiveTab('inventory');
+      setSelectedDrug(null);
+      setDispenseTarget('');
+      setDispenseAmount(1);
+    } catch (error) {
+      console.error(error);
+      alert('حدث خطأ أثناء الصرف');
+    }
+  };
 
   const handleDispense = () => {
     if (!selectedDrug || !dispenseTarget) return;
@@ -294,7 +326,7 @@ export default function PharmacyPage() {
                     </div>
                   )}
                   <button 
-                    onClick={handleDispense}
+                    onClick={handleConfirmDispense}
                     disabled={!dispenseTarget || (!selectedDrug)}
                     className="w-full bg-primary text-white py-4 rounded-2xl font-black hover:scale-105 active:scale-95 transition-all shadow-xl shadow-primary/30 disabled:opacity-50 disabled:grayscale"
                   >

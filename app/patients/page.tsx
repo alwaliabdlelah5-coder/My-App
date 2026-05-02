@@ -18,6 +18,7 @@ import {
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '@/lib/utils';
+import { usePatients } from '@/hooks/use-patients';
 
 interface Patient {
   id: string;
@@ -40,15 +41,48 @@ const initialPatients: Patient[] = [
 ];
 
 export default function PatientsPage() {
-  const [patients, setPatients] = useState<Patient[]>(initialPatients);
+  const { patients: livePatients, loading, addPatient } = usePatients();
   const [searchQuery, setSearchQuery] = useState('');
   const [isAddingPatient, setIsAddingPatient] = useState(false);
+  const [newPatient, setNewPatient] = useState({
+    name: '',
+    phone: '',
+    gender: 'ذكر',
+    age: 0,
+    email: '',
+    fileNumber: '',
+    status: 'active' as const
+  });
 
-  const filteredPatients = patients.filter(p => 
+  const displayPatients = loading ? initialPatients : (livePatients.length > 0 ? livePatients : initialPatients);
+
+  const filteredPatients = displayPatients.filter(p => 
     p.name.includes(searchQuery) || 
     p.phone.includes(searchQuery) || 
     p.fileNumber.includes(searchQuery)
   );
+
+  const handleSave = async () => {
+    if (!newPatient.name || !newPatient.phone) {
+      alert('الرجاء إدخال الاسم ورقم الهاتف');
+      return;
+    }
+    const fileNum = newPatient.fileNumber || `P-${1000 + displayPatients.length + 1}`;
+    await addPatient({
+      ...newPatient,
+      fileNumber: fileNum
+    });
+    setIsAddingPatient(false);
+    setNewPatient({
+      name: '',
+      phone: '',
+      gender: 'ذكر',
+      age: 0,
+      email: '',
+      fileNumber: '',
+      status: 'active'
+    });
+  };
 
   return (
     <Sidebar>
@@ -59,6 +93,7 @@ export default function PatientsPage() {
             <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
               <Users className="w-8 h-8 text-primary" />
               إدارة المرضى
+              {loading && <span className="text-xs text-primary animate-pulse ml-2">Loading...</span>}
             </h1>
             <p className="text-gray-500 mt-1">عرض وتعديل بيانات المرضى والسجلات الطبية.</p>
           </div>
@@ -90,7 +125,7 @@ export default function PatientsPage() {
             </button>
             <div className="h-6 w-px bg-gray-200 mx-2 hidden md:block" />
             <div className="flex items-center gap-1 text-xs text-gray-400 font-medium">
-              عرض {filteredPatients.length} من {patients.length} مريض
+              عرض {filteredPatients.length} من {displayPatients.length} مريض
             </div>
           </div>
         </div>
@@ -215,29 +250,57 @@ export default function PatientsPage() {
                 <div className="grid grid-cols-2 gap-6">
                   <div className="space-y-2">
                     <label className="text-sm font-bold text-gray-700">الاسم واللقب</label>
-                    <input type="text" placeholder="مثال: يحيى صالح" className="w-full bg-gray-50 border-none rounded-2xl p-4 text-sm focus:ring-2 focus:ring-primary/20 transition-all font-medium" />
+                    <input 
+                      type="text" 
+                      placeholder="مثال: يحيى صالح" 
+                      value={newPatient.name}
+                      onChange={(e) => setNewPatient({...newPatient, name: e.target.value})}
+                      className="w-full bg-gray-50 border-none rounded-2xl p-4 text-sm focus:ring-2 focus:ring-primary/20 transition-all font-medium" 
+                    />
                   </div>
                   <div className="space-y-2">
                     <label className="text-sm font-bold text-gray-700">رقم الهاتف</label>
-                    <input type="tel" placeholder="777XXXXXX" className="w-full bg-gray-50 border-none rounded-2xl p-4 text-sm focus:ring-2 focus:ring-primary/20 transition-all font-medium text-left" dir="ltr" />
+                    <input 
+                      type="tel" 
+                      placeholder="777XXXXXX" 
+                      value={newPatient.phone}
+                      onChange={(e) => setNewPatient({...newPatient, phone: e.target.value})}
+                      className="w-full bg-gray-50 border-none rounded-2xl p-4 text-sm focus:ring-2 focus:ring-primary/20 transition-all font-medium text-left" 
+                      dir="ltr" 
+                    />
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-6">
                   <div className="space-y-2">
                     <label className="text-sm font-bold text-gray-700">الجنس</label>
-                    <select className="w-full bg-gray-50 border-none rounded-2xl p-4 text-sm focus:ring-2 focus:ring-primary/20 transition-all font-medium appearance-none">
+                    <select 
+                      value={newPatient.gender}
+                      onChange={(e) => setNewPatient({...newPatient, gender: e.target.value})}
+                      className="w-full bg-gray-50 border-none rounded-2xl p-4 text-sm focus:ring-2 focus:ring-primary/20 transition-all font-medium appearance-none"
+                    >
                       <option>ذكر</option>
                       <option>أنثى</option>
                     </select>
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-bold text-gray-700">تاريخ الميلاد</label>
-                    <input type="date" className="w-full bg-gray-50 border-none rounded-2xl p-4 text-sm focus:ring-2 focus:ring-primary/20 transition-all font-medium" />
+                    <label className="text-sm font-bold text-gray-700">العمر</label>
+                    <input 
+                      type="number" 
+                      value={newPatient.age}
+                      onChange={(e) => setNewPatient({...newPatient, age: parseInt(e.target.value) || 0})}
+                      className="w-full bg-gray-50 border-none rounded-2xl p-4 text-sm focus:ring-2 focus:ring-primary/20 transition-all font-medium" 
+                    />
                   </div>
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-bold text-gray-700">البريد الإلكتروني (اختياري)</label>
-                  <input type="email" placeholder="example@gmail.com" className="w-full bg-gray-50 border-none rounded-2xl p-4 text-sm focus:ring-2 focus:ring-primary/20 transition-all font-medium" />
+                  <input 
+                    type="email" 
+                    placeholder="example@gmail.com" 
+                    value={newPatient.email}
+                    onChange={(e) => setNewPatient({...newPatient, email: e.target.value})}
+                    className="w-full bg-gray-50 border-none rounded-2xl p-4 text-sm focus:ring-2 focus:ring-primary/20 transition-all font-medium" 
+                  />
                 </div>
               </div>
               <div className="p-8 bg-gray-50 flex items-center justify-end gap-4">
@@ -247,7 +310,10 @@ export default function PatientsPage() {
                 >
                   إلغاء
                 </button>
-                <button className="bg-primary text-white px-8 py-3 rounded-2xl font-bold hover:bg-primary/95 transition-all shadow-lg shadow-primary/25">
+                <button 
+                  onClick={handleSave}
+                  className="bg-primary text-white px-8 py-3 rounded-2xl font-bold hover:bg-primary/95 transition-all shadow-lg shadow-primary/25"
+                >
                   حفظ البيانات
                 </button>
               </div>

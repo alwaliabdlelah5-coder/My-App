@@ -22,7 +22,9 @@ import { motion } from 'motion/react';
 import { cn } from '@/lib/utils';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
 
-const data = [
+import { useFinance } from '@/hooks/use-finance';
+
+const chartData = [
   { name: 'Sat', income: 45000, expense: 25000 },
   { name: 'Sun', income: 52000, expense: 28000 },
   { name: 'Mon', income: 38000, expense: 22000 },
@@ -32,7 +34,7 @@ const data = [
   { name: 'Fri', income: 12000, expense: 15000 },
 ];
 
-const transactions = [
+const initialTransactions = [
   { id: 'INV-001', entry: 'كشف مريض - عبدالعزيز العتيبي', type: 'income', amount: '5,000 ر.ي', date: '10:45 PM', method: 'نقداً' },
   { id: 'INV-002', entry: 'شراء لوازم مخبرية', type: 'expense', amount: '12,500 ر.ي', date: '09:30 PM', method: 'تحويل' },
   { id: 'INV-003', entry: 'صرف وصفة طبية - مريم الصنعاني', type: 'income', amount: '8,200 ر.ي', date: '08:15 PM', method: 'نقداً' },
@@ -40,6 +42,18 @@ const transactions = [
 ];
 
 export default function FinancePage() {
+  const { transactions: liveTx, loading, getStats } = useFinance();
+  const stats = getStats();
+
+  const displayTransactions = loading ? initialTransactions : (liveTx.length > 0 ? liveTx.map(t => ({
+    id: t.id,
+    entry: t.description,
+    type: t.type,
+    amount: `${t.amount.toLocaleString()} ر.ي`,
+    date: 'Today',
+    method: t.method === 'cash' ? 'نقداً' : t.method === 'card' ? 'بطاقة' : 'تحويل'
+  })) : initialTransactions);
+
   return (
     <Sidebar>
       <div className="space-y-8 pb-12">
@@ -49,6 +63,7 @@ export default function FinancePage() {
             <h1 className="text-3xl font-black text-gray-900 flex items-center gap-3 italic tracking-tighter">
               <DollarSign className="w-8 h-8 text-primary" />
               FINANCIAL ACCOUNTS
+              {loading && <span className="text-xs text-primary animate-pulse ml-2">Syncing...</span>}
             </h1>
             <p className="text-gray-500 font-bold uppercase text-[10px] tracking-[0.2em] mt-1 italic">
               Real-time revenue monitoring & invoice management
@@ -68,10 +83,10 @@ export default function FinancePage() {
 
         {/* Financial Snapshots */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-           <FinanceStat label="صافي الدخل (اليوم)" value="128,450" icon={TrendingUp} trend="+12.5%" isIncrease />
-           <FinanceStat label="المصروفات التشغيلية" value="42,100" icon={Wallet} trend="+2.1%" isIncrease={false} />
-           <FinanceStat label="الفواتير المعلقة" value="15,800" icon={Receipt} trend="-4.2%" isIncrease />
-           <FinanceStat label="الرصيد النقدي" value="1,245,000" icon={CreditCard} trend="+5.8%" isIncrease />
+           <FinanceStat label="صافي الدخل (اليوم)" value={stats.income.toLocaleString()} icon={TrendingUp} trend="+12.5%" isIncrease />
+           <FinanceStat label="المصروفات التشغيلية" value={stats.expense.toLocaleString()} icon={Wallet} trend="+2.1%" isIncrease={false} />
+           <FinanceStat label="صافي الربح" value={stats.net.toLocaleString()} icon={Receipt} trend="+4.2%" isIncrease={stats.net >= 0} />
+           <FinanceStat label="الرصيد النقدي" value={(1245000 + stats.net).toLocaleString()} icon={CreditCard} trend="+5.8%" isIncrease />
         </div>
 
         {/* Charts Section */}
@@ -90,7 +105,7 @@ export default function FinancePage() {
               </div>
               <div className="h-[350px]">
                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={data} barGap={8}>
+                    <BarChart data={chartData} barGap={8}>
                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
                        <XAxis 
                          dataKey="name" 
@@ -154,7 +169,7 @@ export default function FinancePage() {
                     </tr>
                  </thead>
                  <tbody className="divide-y divide-gray-100">
-                    {transactions.map((t, i) => (
+                    {displayTransactions.map((t, i) => (
                       <tr key={t.id} className="hover:bg-gray-50/50 transition-all group">
                          <td className="px-8 py-6">
                             <span className="font-black text-gray-400 font-mono text-xs">{t.id}</span>
