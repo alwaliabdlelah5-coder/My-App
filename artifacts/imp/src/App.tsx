@@ -12,6 +12,7 @@ import HRPage from "@/pages/HRPage";
 import ReportsPage from "@/pages/ReportsPage";
 import UsersPage from "@/pages/UsersPage";
 import SettingsPage from "@/pages/SettingsPage";
+import NotFound from "@/pages/not-found";
 import { FirebaseSeeder } from "@/components/FirebaseSeeder";
 
 function Router() {
@@ -30,7 +31,7 @@ function Router() {
       <Route path="/reports" component={ReportsPage} />
       <Route path="/users" component={UsersPage} />
       <Route path="/settings" component={SettingsPage} />
-      <Route component={Dashboard} />
+      <Route component={NotFound} />
     </Switch>
   );
 }
