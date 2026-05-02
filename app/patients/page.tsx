@@ -15,6 +15,7 @@ import {
   ChevronRight,
   UserPlus
 } from 'lucide-react';
+import Link from 'next/link';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '@/lib/utils';
 
@@ -159,7 +160,12 @@ export default function PatientsPage() {
                       </div>
                     </td>
                     <td className="px-6 py-4 text-left">
-                      <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+                      <Link href={`/app/patients/${patient.id}/record`}>
+                        <button className="p-3 bg-indigo-50 text-indigo-600 rounded-xl font-black italic text-[10px] tracking-widest uppercase hover:bg-indigo-600 hover:text-white transition-all">
+                          Record
+                        </button>
+                      </Link>
+                      <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors ml-2">
                         <MoreVertical className="w-4 h-4 text-gray-400" />
                       </button>
                     </td>

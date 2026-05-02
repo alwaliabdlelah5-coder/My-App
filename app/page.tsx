@@ -11,8 +11,12 @@ import {
   Clock,
   ArrowDownRight,
   Plus,
-  ClipboardList
+  ClipboardList,
+  Stethoscope,
+  Package,
+  CreditCard
 } from 'lucide-react';
+import Link from 'next/link';
 import { motion } from 'motion/react';
 import { cn } from '@/lib/utils';
 
@@ -83,6 +87,16 @@ export default function Dashboard() {
                 CREATE APPOINTMENT
              </button>
           </div>
+        </div>
+
+        {/* Quick Access Hub */}
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6">
+           <QuickAction icon={Users} label="المرضى" href="/patients" color="bg-blue-50 text-blue-600" />
+           <QuickAction icon={Calendar} label="المواعيد" href="/appointments" color="bg-emerald-50 text-emerald-600" />
+           <QuickAction icon={Stethoscope} label="العيادات" href="/clinic" color="bg-purple-50 text-purple-600" />
+           <QuickAction icon={Package} label="المخزون" href="/inventory" color="bg-amber-50 text-amber-600" />
+           <QuickAction icon={Activity} label="المختبر" href="/lab" color="bg-rose-50 text-rose-600" />
+           <QuickAction icon={CreditCard} label="المالية" href="/finance" color="bg-indigo-50 text-indigo-600" />
         </div>
 
         {/* Stats Grid */}
@@ -264,5 +278,22 @@ export default function Dashboard() {
         </div>
       </div>
     </Sidebar>
+  );
+}
+
+function QuickAction({ icon: Icon, label, href, color }: { icon: any, label: string, href: string, color: string }) {
+  return (
+    <Link href={href}>
+      <motion.button
+        whileHover={{ scale: 1.05, y: -5 }}
+        whileTap={{ scale: 0.95 }}
+        className="w-full bg-white p-6 rounded-[2.5rem] shadow-sm flex flex-col items-center gap-4 transition-all hover:border-primary/20 hover:shadow-xl hover:shadow-primary/5 group border border-transparent"
+      >
+        <div className={cn("w-14 h-14 rounded-2xl flex items-center justify-center transition-all group-hover:scale-110", color)}>
+          <Icon className="w-7 h-7" />
+        </div>
+        <span className="text-sm font-black text-gray-900 italic tracking-tighter uppercase">{label}</span>
+      </motion.button>
+    </Link>
   );
 }

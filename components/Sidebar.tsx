@@ -17,7 +17,10 @@ import {
   Settings2,
   Tablets,
   CreditCard,
-  UserCircle
+  UserCircle,
+  Package,
+  TrendingUp,
+  Activity
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '@/lib/utils';
@@ -36,10 +39,11 @@ const navItems: NavItem[] = [
   { name: 'المختبر', href: '/lab', icon: FlaskConical },
   { name: 'القائمة الحية', href: '/queue', icon: ClipboardList },
   { name: 'الصيدلية', href: '/pharmacy', icon: Tablets },
+  { name: 'المخزون العام', href: '/inventory', icon: Package },
   { name: 'المالية', href: '/finance', icon: CreditCard },
   { name: 'الموارد البشرية', href: '/hr', icon: Users },
   { name: 'المستخدمين', href: '/users', icon: UserCircle },
-  { name: 'التقارير', href: '/reports', icon: ClipboardList },
+  { name: 'التقارير', href: '/reports', icon: Activity },
   { name: 'الإعدادات', href: '/settings', icon: Settings },
 ];
 
@@ -49,8 +53,8 @@ export default function Sidebar({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
   const searchResults = [
-    { id: 1, name: 'يحيى صالح', file: 'P-12345', phone: '777123456' },
-    { id: 2, name: 'مريم الصنعاني', file: 'P-09876', phone: '733000111' },
+    { id: 1, name: 'سناء علي عبد الله', file: 'P-1001', phone: '777123456' },
+    { id: 2, name: 'محمد حسن صالح', file: 'P-1002', phone: '770987654' },
   ];
 
   return (
@@ -180,18 +184,20 @@ export default function Sidebar({ children }: { children: React.ReactNode }) {
                        <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] px-3 mb-4 italic">نتائج البحث المقترحة</h4>
                        <div className="space-y-2">
                           {searchResults.map(res => (
-                            <button key={res.id} className="w-full text-right p-4 rounded-2xl hover:bg-gray-50 transition-all flex items-center justify-between group">
-                               <div className="flex items-center gap-4">
-                                  <div className="w-12 h-12 bg-white border rounded-xl flex items-center justify-center text-primary font-black shadow-sm group-hover:scale-110 transition-all">
-                                     {res.id}
+                            <Link key={res.id} href={`/app/patients/${res.id}/record`} className="block">
+                               <button className="w-full text-right p-4 rounded-2xl hover:bg-gray-50 transition-all flex items-center justify-between group text-right">
+                                  <div className="flex items-center gap-4">
+                                     <div className="w-12 h-12 bg-white border rounded-xl flex items-center justify-center text-primary font-black shadow-sm group-hover:scale-110 transition-all">
+                                        {res.id}
+                                     </div>
+                                     <div className="text-right">
+                                        <p className="font-black text-gray-900 tracking-tighter italic">{res.name}</p>
+                                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">{res.file} • {res.phone}</p>
+                                     </div>
                                   </div>
-                                  <div>
-                                     <p className="font-black text-gray-900 tracking-tighter italic">{res.name}</p>
-                                     <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">{res.file} • {res.phone}</p>
-                                  </div>
-                               </div>
-                               <ChevronLeft className="w-5 h-5 text-gray-200 group-hover:text-primary" />
-                            </button>
+                                  <ChevronLeft className="w-5 h-5 text-gray-200 group-hover:text-primary" />
+                               </button>
+                            </Link>
                           ))}
                        </div>
                     </div>
