@@ -1,18 +1,6 @@
-'use client';
-
 import { useState, useEffect } from 'react';
-import { 
-  collection, 
-  query, 
-  onSnapshot, 
-  addDoc, 
-  updateDoc, 
-  doc, 
-  serverTimestamp,
-  orderBy,
-  where
-} from 'firebase/firestore';
-import { getFirebase } from '@/lib/firebase';
+import { collection, onSnapshot, query, orderBy, updateDoc, doc, addDoc, serverTimestamp } from 'firebase/firestore';
+import { getDb } from '@/lib/firebase';
 import { handleFirestoreError, OperationType } from '@/lib/firestore-errors';
 
 export interface Drug {
@@ -30,59 +18,38 @@ export interface Drug {
 export function usePharmacy() {
   const [inventory, setInventory] = useState<Drug[]>([]);
   const [loading, setLoading] = useState(true);
-  const { db } = getFirebase();
+  const db = getDb();
 
   useEffect(() => {
     if (!db) return;
 
-    const q = query(
-      collection(db, 'drugs'),
-      orderBy('name', 'asc')
-    );
-
-    const unsubscribe = onSnapshot(q, 
-      (snapshot) => {
-        const list = snapshot.docs.map(doc => ({
+    try {
+      const q = query(collection(db, 'drugs'), orderBy('name', 'asc'));
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        const data = snapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data()
         })) as Drug[];
-        setInventory(list);
+        setInventory(data);
         setLoading(false);
-      },
-      (error) => {
+      }, (error) => {
         handleFirestoreError(error, OperationType.LIST, 'drugs');
-        setLoading(false);
-      }
-    );
-
-    return () => unsubscribe();
-  }, [db]);
-
-  const addDrug = async (data: Omit<Drug, 'id'>) => {
-    if (!db) return;
-    try {
-      const docRef = await addDoc(collection(db, 'drugs'), {
-        ...data,
-        createdAt: serverTimestamp(),
       });
-      return docRef.id;
+
+      return () => unsubscribe();
     } catch (error) {
-      handleFirestoreError(error, OperationType.CREATE, 'drugs');
+      handleFirestoreError(error, OperationType.LIST, 'drugs');
     }
-  };
+  }, [db]);
 
   const updateStock = async (id: string, newStock: number) => {
     if (!db) return;
     try {
-      const docRef = doc(db, 'drugs', id);
-      await updateDoc(docRef, { 
-        stock: newStock,
-        updatedAt: serverTimestamp()
-      });
+      await updateDoc(doc(db, 'drugs', id), { stock: newStock });
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `drugs/${id}`);
     }
   };
 
-  return { inventory, loading, addDrug, updateStock };
+  return { inventory, loading, updateStock };
 }

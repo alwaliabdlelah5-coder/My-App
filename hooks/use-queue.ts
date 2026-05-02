@@ -1,74 +1,54 @@
-'use client';
-
 import { useState, useEffect } from 'react';
-import { 
-  collection, 
-  query, 
-  onSnapshot, 
-  addDoc, 
-  updateDoc, 
-  doc, 
-  serverTimestamp,
-  orderBy,
-  where,
-  deleteDoc
-} from 'firebase/firestore';
-import { getFirebase } from '@/lib/firebase';
+import { collection, onSnapshot, query, orderBy, addDoc, updateDoc, doc, serverTimestamp, deleteDoc } from 'firebase/firestore';
+import { getDb } from '@/lib/firebase';
 import { handleFirestoreError, OperationType } from '@/lib/firestore-errors';
 
 export interface QueueItem {
   id: string;
-  patientId: string;
+  patientId?: string;
   patientName: string;
-  doctorId: string;
-  doctorName: string;
+  type: string;
   status: 'waiting' | 'in_progress' | 'completed' | 'cancelled';
-  priority: number;
-  entryTime: any;
+  priority: 'normal' | 'urgent' | 'emergency';
   startTime?: any;
-  endTime?: any;
+  createdAt: any;
 }
 
 export function useQueue() {
   const [queue, setQueue] = useState<QueueItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const { db } = getFirebase();
+  const db = getDb();
 
   useEffect(() => {
     if (!db) return;
 
-    const q = query(
-      collection(db, 'queue'),
-      orderBy('priority', 'desc'),
-      orderBy('entryTime', 'asc')
-    );
-
-    const unsubscribe = onSnapshot(q, 
-      (snapshot) => {
-        const list = snapshot.docs.map(doc => ({
+    try {
+      const q = query(collection(db, 'queue'), orderBy('createdAt', 'asc'));
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        const data = snapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data()
         })) as QueueItem[];
-        setQueue(list);
+        setQueue(data);
         setLoading(false);
-      },
-      (error) => {
+      }, (error) => {
         handleFirestoreError(error, OperationType.LIST, 'queue');
-        setLoading(false);
-      }
-    );
+      });
 
-    return () => unsubscribe();
+      return () => unsubscribe();
+    } catch (error) {
+      handleFirestoreError(error, OperationType.LIST, 'queue');
+    }
   }, [db]);
 
-  const addToQueue = async (data: Omit<QueueItem, 'id' | 'entryTime'>) => {
+  const addToQueue = async (data: Omit<QueueItem, 'id' | 'createdAt' | 'status'>) => {
     if (!db) return;
     try {
-      const docRef = await addDoc(collection(db, 'queue'), {
+      await addDoc(collection(db, 'queue'), {
         ...data,
-        entryTime: serverTimestamp(),
+        status: 'waiting',
+        createdAt: serverTimestamp()
       });
-      return docRef.id;
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, 'queue');
     }
@@ -76,13 +56,12 @@ export function useQueue() {
 
   const updateQueueStatus = async (id: string, status: QueueItem['status']) => {
     if (!db) return;
-    const updates: any = { status };
-    if (status === 'in_progress') updates.startTime = serverTimestamp();
-    if (status === 'completed') updates.endTime = serverTimestamp();
-    
     try {
-      const docRef = doc(db, 'queue', id);
-      await updateDoc(docRef, updates);
+      const updateData: any = { status };
+      if (status === 'in_progress') {
+        updateData.startTime = serverTimestamp();
+      }
+      await updateDoc(doc(db, 'queue', id), updateData);
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `queue/${id}`);
     }

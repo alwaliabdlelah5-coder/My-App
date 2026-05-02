@@ -1,18 +1,6 @@
-'use client';
-
 import { useState, useEffect } from 'react';
-import { 
-  collection, 
-  query, 
-  onSnapshot, 
-  addDoc, 
-  updateDoc, 
-  doc, 
-  serverTimestamp,
-  orderBy,
-  where
-} from 'firebase/firestore';
-import { getFirebase } from '@/lib/firebase';
+import { collection, onSnapshot, query, orderBy, addDoc, updateDoc, doc, serverTimestamp, getDocs } from 'firebase/firestore';
+import { getDb } from '@/lib/firebase';
 import { handleFirestoreError, OperationType } from '@/lib/firestore-errors';
 
 export interface Patient {
@@ -22,8 +10,7 @@ export interface Patient {
   phone: string;
   email?: string;
   gender: string;
-  age: number;
-  lastVisit?: string;
+  birthDate: string;
   status: 'active' | 'inactive';
   createdAt?: any;
   updatedAt?: any;
@@ -32,89 +19,42 @@ export interface Patient {
 export function usePatients() {
   const [patients, setPatients] = useState<Patient[]>([]);
   const [loading, setLoading] = useState(true);
-  const { db } = getFirebase();
+  const db = getDb();
 
   useEffect(() => {
     if (!db) return;
 
-    const q = query(
-      collection(db, 'patients'),
-      orderBy('createdAt', 'desc')
-    );
-
-    const unsubscribe = onSnapshot(q, 
-      (snapshot) => {
-        const patientsList = snapshot.docs.map(doc => ({
+    try {
+      const q = query(collection(db, 'patients'), orderBy('createdAt', 'desc'));
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        const patientData = snapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data()
         })) as Patient[];
-        setPatients(patientsList);
+        setPatients(patientData);
         setLoading(false);
-      },
-      (error) => {
+      }, (error) => {
         handleFirestoreError(error, OperationType.LIST, 'patients');
-        setLoading(false);
-      }
-    );
+      });
 
-    return () => unsubscribe();
+      return () => unsubscribe();
+    } catch (error) {
+      handleFirestoreError(error, OperationType.LIST, 'patients');
+    }
   }, [db]);
 
-  const addPatient = async (patientData: Omit<Patient, 'id' | 'createdAt' | 'updatedAt'>) => {
+  const addPatient = async (data: Omit<Patient, 'id' | 'createdAt' | 'updatedAt'>) => {
     if (!db) return;
     try {
-      const docRef = await addDoc(collection(db, 'patients'), {
-        ...patientData,
+      await addDoc(collection(db, 'patients'), {
+        ...data,
         createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
       });
-      return docRef.id;
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, 'patients');
     }
   };
 
-  const updatePatient = async (id: string, patientData: Partial<Patient>) => {
-    if (!db) return;
-    try {
-      const docRef = doc(db, 'patients', id);
-      await updateDoc(docRef, {
-        ...patientData,
-        updatedAt: serverTimestamp(),
-      });
-    } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, `patients/${id}`);
-    }
-  };
-
-  return { patients, loading, addPatient, updatePatient };
-}
-
-export function usePatient(id: string) {
-  const [patient, setPatient] = useState<Patient | null>(null);
-  const [loading, setLoading] = useState(true);
-  const { db } = getFirebase();
-
-  useEffect(() => {
-    if (!db || !id) return;
-
-    const unsubscribe = onSnapshot(doc(db, 'patients', id), 
-      (docSnap) => {
-        if (docSnap.exists()) {
-          setPatient({ id: docSnap.id, ...docSnap.data() } as Patient);
-        } else {
-          setPatient(null);
-        }
-        setLoading(false);
-      },
-      (error) => {
-        handleFirestoreError(error, OperationType.GET, `patients/${id}`);
-        setLoading(false);
-      }
-    );
-
-    return () => unsubscribe();
-  }, [db, id]);
-
-  return { patient, loading };
+  return { patients, loading, addPatient };
 }

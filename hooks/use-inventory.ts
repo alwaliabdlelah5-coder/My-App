@@ -1,86 +1,34 @@
-'use client';
-
 import { useState, useEffect } from 'react';
-import { 
-  collection, 
-  query, 
-  onSnapshot, 
-  addDoc, 
-  updateDoc, 
-  doc, 
-  serverTimestamp,
-  orderBy
-} from 'firebase/firestore';
-import { getFirebase } from '@/lib/firebase';
+import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
+import { getDb } from '@/lib/firebase';
 import { handleFirestoreError, OperationType } from '@/lib/firestore-errors';
 
-export interface InventoryItem {
-  id: string;
-  name: string;
-  category: string;
-  quantity: number;
-  unit: string;
-  minThreshold: number;
-  pricePerUnit: number;
-  lastRestocked?: any;
-}
-
 export function useInventory() {
-  const [items, setItems] = useState<InventoryItem[]>([]);
+  const [inventory, setInventory] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const { db } = getFirebase();
+  const db = getDb();
 
   useEffect(() => {
     if (!db) return;
 
-    const q = query(
-      collection(db, 'inventory'),
-      orderBy('name', 'asc')
-    );
-
-    const unsubscribe = onSnapshot(q, 
-      (snapshot) => {
-        const list = snapshot.docs.map(doc => ({
+    try {
+      const q = query(collection(db, 'drugs'), orderBy('name', 'asc'));
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        const data = snapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data()
-        })) as InventoryItem[];
-        setItems(list);
+        })) as any[];
+        setInventory(data);
         setLoading(false);
-      },
-      (error) => {
-        handleFirestoreError(error, OperationType.LIST, 'inventory');
-        setLoading(false);
-      }
-    );
+      }, (error) => {
+        handleFirestoreError(error, OperationType.LIST, 'drugs');
+      });
 
-    return () => unsubscribe();
+      return () => unsubscribe();
+    } catch (error) {
+      handleFirestoreError(error, OperationType.LIST, 'drugs');
+    }
   }, [db]);
 
-  const updateQuantity = async (id: string, newQuantity: number) => {
-    if (!db) return;
-    try {
-      const docRef = doc(db, 'inventory', id);
-      await updateDoc(docRef, { 
-        quantity: newQuantity,
-        updatedAt: serverTimestamp()
-      });
-    } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, `inventory/${id}`);
-    }
-  };
-
-  const addItem = async (data: Omit<InventoryItem, 'id'>) => {
-    if (!db) return;
-    try {
-      const docRef = await addDoc(collection(db, 'inventory'), {
-        ...data,
-        createdAt: serverTimestamp(),
-      });
-      return docRef.id;
-    } catch (error) {
-      handleFirestoreError(error, OperationType.CREATE, 'inventory');
-    }
-  };
-
-  return { items, loading, updateQuantity, addItem };
+  return { inventory, loading };
 }

@@ -1,6 +1,5 @@
 import type { Metadata } from 'next';
 import { Cairo } from 'next/font/google';
-import { Analytics } from '@vercel/analytics/next';
 import './globals.css';
 
 const cairo = Cairo({
@@ -14,12 +13,14 @@ export const metadata: Metadata = {
   description: 'نظام طبي متكامل لإدارة المؤسسات الطبية',
 };
 
+import { FirebaseSeeder } from '@/components/FirebaseSeeder';
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="ar" dir="rtl" className={`${cairo.variable}`}>
       <body className="font-cairo antialiased bg-gray-50 text-gray-900" suppressHydrationWarning>
         {children}
-        <Analytics />
+        <FirebaseSeeder />
       </body>
     </html>
   );

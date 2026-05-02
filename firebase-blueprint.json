@@ -98,6 +98,46 @@
         "contractType": { "type": "string" },
         "joinDate": { "type": "string", "format": "date" }
       }
+    },
+    "Drug": {
+      "title": "Drug",
+      "description": "Pharmacological product",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "scientificName": { "type": "string" },
+        "category": { "type": "string" },
+        "stock": { "type": "number" },
+        "expiry": { "type": "string", "format": "date" },
+        "price": { "type": "string" },
+        "brandNames": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "Transaction": {
+      "title": "Transaction",
+      "description": "Financial transaction record",
+      "type": "object",
+      "properties": {
+        "description": { "type": "string" },
+        "type": { "type": "string", "enum": ["income", "expense"] },
+        "amount": { "type": "number" },
+        "category": { "type": "string" },
+        "method": { "type": "string", "enum": ["cash", "card", "transfer"] },
+        "date": { "type": "string", "format": "date-time" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "QueueItem": {
+      "title": "Queue Item",
+      "description": "A patient in the waiting queue",
+      "type": "object",
+      "properties": {
+        "patientName": { "type": "string" },
+        "type": { "type": "string" },
+        "status": { "type": "string", "enum": ["waiting", "in_progress", "completed", "cancelled"] },
+        "priority": { "type": "string", "enum": ["normal", "urgent", "emergency"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
     }
   },
   "firestore": {
@@ -107,6 +147,8 @@
     "/drugs/{drugId}": { "schema": "Drug", "description": "Pharmacy drugs" },
     "/lab_tests/{testId}": { "schema": "LabTest", "description": "Catalog of lab tests" },
     "/employees/{empId}": { "schema": "Employee", "description": "Staff records" },
-    "/invoices/{invoiceId}": { "schema": "Invoice", "description": "Billing records" }
+    "/invoices/{invoiceId}": { "schema": "Invoice", "description": "Billing records" },
+    "/transactions/{transactionId}": { "schema": "Transaction", "description": "Financial ledger" },
+    "/queue/{queueId}": { "schema": "QueueItem", "description": "Real-time patient queue" }
   }
 }

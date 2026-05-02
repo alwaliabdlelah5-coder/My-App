@@ -1,86 +1,70 @@
-'use client';
-
 import { useState, useEffect } from 'react';
-import { 
-  collection, 
-  query, 
-  onSnapshot, 
-  addDoc, 
-  serverTimestamp,
-  orderBy,
-  limit
-} from 'firebase/firestore';
-import { getFirebase } from '@/lib/firebase';
+import { collection, onSnapshot, query, orderBy, addDoc, serverTimestamp } from 'firebase/firestore';
+import { getDb } from '@/lib/firebase';
 import { handleFirestoreError, OperationType } from '@/lib/firestore-errors';
 
 export interface Transaction {
   id: string;
-  type: 'income' | 'expense';
-  category: string;
-  amount: number;
   description: string;
-  date: any;
+  type: 'income' | 'expense';
+  amount: number;
+  category: string;
   method: 'cash' | 'card' | 'transfer';
-  referenceId?: string; // e.g. Patient ID or Invoice ID
+  date: any;
+  createdAt: any;
 }
 
 export function useFinance() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
-  const { db } = getFirebase();
+  const db = getDb();
 
   useEffect(() => {
     if (!db) return;
 
-    const q = query(
-      collection(db, 'finance'),
-      orderBy('date', 'desc'),
-      limit(50)
-    );
-
-    const unsubscribe = onSnapshot(q, 
-      (snapshot) => {
-        const list = snapshot.docs.map(doc => ({
+    try {
+      const q = query(collection(db, 'transactions'), orderBy('createdAt', 'desc'));
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        const data = snapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data()
         })) as Transaction[];
-        setTransactions(list);
+        setTransactions(data);
         setLoading(false);
-      },
-      (error) => {
-        handleFirestoreError(error, OperationType.LIST, 'finance');
-        setLoading(false);
-      }
-    );
+      }, (error) => {
+        handleFirestoreError(error, OperationType.LIST, 'transactions');
+      });
 
-    return () => unsubscribe();
+      return () => unsubscribe();
+    } catch (error) {
+      handleFirestoreError(error, OperationType.LIST, 'transactions');
+    }
   }, [db]);
 
-  const addTransaction = async (data: Omit<Transaction, 'id' | 'date'>) => {
+  const addTransaction = async (data: Omit<Transaction, 'id' | 'date' | 'createdAt'>) => {
     if (!db) return;
     try {
-      const docRef = await addDoc(collection(db, 'finance'), {
+      await addDoc(collection(db, 'transactions'), {
         ...data,
-        date: serverTimestamp(),
+        date: new Date().toISOString(),
+        createdAt: serverTimestamp()
       });
-      return docRef.id;
     } catch (error) {
-      handleFirestoreError(error, OperationType.CREATE, 'finance');
+      handleFirestoreError(error, OperationType.CREATE, 'transactions');
     }
   };
 
   const getStats = () => {
-    const totalIncome = transactions
+    const income = transactions
       .filter(t => t.type === 'income')
       .reduce((sum, t) => sum + t.amount, 0);
-    const totalExpense = transactions
+    const expense = transactions
       .filter(t => t.type === 'expense')
       .reduce((sum, t) => sum + t.amount, 0);
-    
     return {
-      income: totalIncome,
-      expense: totalExpense,
-      net: totalIncome - totalExpense
+      income,
+      expense,
+      net: income - expense
     };
   };
 
