@@ -1,0 +1,21 @@
+import { clsx, type ClassValue } from "clsx"
+import { twMerge } from "tailwind-merge"
+
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs))
+}
+
+export const SYSTEM_CONFIG = {
+  "database_config_filter": {
+    "active_profile": "cloud_firebase",
+    "profiles": [{ "id": "cloud_firebase", "type": "cloud", "engine": "firestore", "status": "primary" }]
+  },
+  "global": {
+    "timezone": "Asia/Aden",
+    "languages": ["ar", "en"],
+    "currency": "ر.ي",
+    "tax_percent": 15,
+    "working_hours": { "start": "08:00", "end": "22:00" }
+  },
+  "pharmacy": { "expiry_alert_days": 30, "low_stock_threshold": 10 }
+};

@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "النظام الطبي المتكامل (IMP)"
+version = "1.0.0"
+id = "artifacts/imp"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 19224
+
+[services.development]
+run = "pnpm --filter @workspace/imp run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/imp", "run", "build" ]
+publicDir = "artifacts/imp/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "19224"
+BASE_PATH = "/"
