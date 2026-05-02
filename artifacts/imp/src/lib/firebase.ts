@@ -1,7 +1,20 @@
 import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
 import { getFirestore, Firestore } from 'firebase/firestore';
 import { getAuth, Auth } from 'firebase/auth';
-import firebaseConfig from '../firebase-applet-config.json';
+
+interface FirebaseConfig {
+  projectId: string;
+  appId: string;
+  apiKey: string;
+  authDomain: string;
+  firestoreDatabaseId: string;
+  storageBucket: string;
+  messagingSenderId: string;
+  measurementId: string;
+}
+
+import rawConfig from '../firebase-applet-config.json';
+const firebaseConfig = rawConfig as FirebaseConfig;
 
 let app: FirebaseApp | null = null;
 let db: Firestore | null = null;
@@ -12,7 +25,7 @@ const getInstances = () => {
   if (!app) {
     try {
       app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
-      db = getFirestore(app, (firebaseConfig as any).firestoreDatabaseId);
+      db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
       auth = getAuth(app);
     } catch (error) {
       console.error("Error initializing Firebase:", error);
