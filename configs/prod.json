@@ -1,0 +1,14 @@
+{
+  "ENVIRONMENT": "production",
+  "API_URL": "https://api.medical.ye/api",
+  "DATABASE": {
+    "TYPE": "cloud",
+    "SYNC_ENABLED": true
+  },
+  "FEATURE_FLAGS": {
+    "ENABLE_DASHBOARD": true,
+    "ENABLE_AI_ANALYSIS": true,
+    "ENABLE_REALTIME_NOTIFICATIONS": true,
+    "MAINTENANCE_MODE": false
+  }
+}

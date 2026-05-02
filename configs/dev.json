@@ -1,0 +1,14 @@
+{
+  "ENVIRONMENT": "development",
+  "API_URL": "http://localhost:3000/api",
+  "DATABASE": {
+    "TYPE": "local",
+    "SYNC_ENABLED": false
+  },
+  "FEATURE_FLAGS": {
+    "ENABLE_DASHBOARD": true,
+    "ENABLE_AI_ANALYSIS": true,
+    "ENABLE_REALTIME_NOTIFICATIONS": false,
+    "MAINTENANCE_MODE": false
+  }
+}
