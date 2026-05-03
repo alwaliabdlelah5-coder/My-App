@@ -3,33 +3,39 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Mail, Lock, AlertCircle, Eye, EyeOff, LogIn } from 'lucide-react';
 import { useAuth, Role, ROLE_LABELS } from '@/contexts/AuthContext';
 
-// Hardcoded demo accounts — roles are baked in server-side, not user-controlled
-const DEMO_ACCOUNTS: Array<{ email: string; password: string; role: Role; name: string }> = [
-  { email: 'admin@clinic.com', password: 'clinic123', role: 'admin', name: 'د. أحمد محمد' },
-  { email: 'doctor@clinic.com', password: 'clinic123', role: 'doctor', name: 'د. سارة خالد' },
-  { email: 'nurse@clinic.com', password: 'clinic123', role: 'nurse', name: 'أحمد علي حسن' },
-  { email: 'lab@clinic.com', password: 'clinic123', role: 'lab_tech', name: 'منى محمد' },
-  { email: 'reception@clinic.com', password: 'clinic123', role: 'receptionist', name: 'خالد عبدالله' },
-  { email: 'pharmacy@clinic.com', password: 'clinic123', role: 'pharmacist', name: 'فاطمة علي' },
-];
+// Demo accounts — only present in development builds (import.meta.env.DEV).
+// In production the entire DEMO_ACCOUNTS constant is tree-shaken out.
+const DEMO_ACCOUNTS: Array<{ email: string; password: string; role: Role; name: string }> =
+  import.meta.env.DEV
+    ? [
+        { email: 'admin@clinic.com',      password: 'clinic123', role: 'admin',        name: 'د. أحمد محمد' },
+        { email: 'doctor@clinic.com',     password: 'clinic123', role: 'doctor',       name: 'د. سارة خالد' },
+        { email: 'nurse@clinic.com',      password: 'clinic123', role: 'nurse',        name: 'أحمد علي حسن' },
+        { email: 'lab@clinic.com',        password: 'clinic123', role: 'lab_tech',     name: 'منى محمد' },
+        { email: 'reception@clinic.com',  password: 'clinic123', role: 'receptionist', name: 'خالد عبدالله' },
+        { email: 'pharmacy@clinic.com',   password: 'clinic123', role: 'pharmacist',   name: 'فاطمة علي' },
+      ]
+    : [];
 
 export default function LoginPage() {
   const { login, seedDemoAccount } = useAuth();
-  const [email, setEmail] = useState('');
+  const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
   const [showPass, setShowPass] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [loading, setLoading]   = useState(false);
+  const [error, setError]       = useState('');
+
+  const isDev = import.meta.env.DEV;
 
   const translateError = (code: string) => {
     const map: Record<string, string> = {
-      'auth/user-not-found': 'لا يوجد حساب بهذا البريد الإلكتروني',
-      'auth/wrong-password': 'كلمة المرور غير صحيحة',
+      'auth/user-not-found':     'لا يوجد حساب بهذا البريد الإلكتروني',
+      'auth/wrong-password':     'كلمة المرور غير صحيحة',
       'auth/invalid-credential': 'البريد الإلكتروني أو كلمة المرور غير صحيحة',
-      'auth/email-already-in-use': 'البريد الإلكتروني مستخدم بالفعل',
-      'auth/weak-password': 'كلمة المرور ضعيفة (6 أحرف على الأقل)',
-      'auth/invalid-email': 'البريد الإلكتروني غير صالح',
-      'auth/too-many-requests': 'محاولات كثيرة، حاول لاحقاً',
+      'auth/email-already-in-use':'البريد الإلكتروني مستخدم بالفعل',
+      'auth/weak-password':      'كلمة المرور ضعيفة (6 أحرف على الأقل)',
+      'auth/invalid-email':      'البريد الإلكتروني غير صالح',
+      'auth/too-many-requests':  'محاولات كثيرة، حاول لاحقاً',
     };
     return map[code] ?? 'حدث خطأ، حاول مجدداً';
   };
@@ -47,12 +53,13 @@ export default function LoginPage() {
     }
   };
 
-  // Demo quick-login: role is controlled by the hardcoded DEMO_ACCOUNTS map, not user input
+  // Only reachable in development — seedDemoAccount is a no-op in production
   const quickLogin = async (demo: typeof DEMO_ACCOUNTS[0]) => {
+    if (!isDev) return;
     setError('');
     setLoading(true);
     try {
-      await seedDemoAccount(demo.email, demo.password, demo.name, demo.role);
+      await seedDemoAccount!(demo.email, demo.password, demo.name, demo.role);
     } catch (err: any) {
       setError(translateError(err.code ?? ''));
     } finally {
@@ -64,7 +71,7 @@ export default function LoginPage() {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 flex items-center justify-center p-6" dir="rtl">
       <div className="w-full max-w-5xl flex gap-8 items-center">
 
-        {/* Left branding panel */}
+        {/* Left branding / demo panel */}
         <motion.div
           initial={{ opacity: 0, x: -40 }}
           animate={{ opacity: 1, x: 0 }}
@@ -95,33 +102,36 @@ export default function LoginPage() {
             ))}
           </div>
 
-          {/* Demo accounts — clearly marked, roles are hardcoded not user-chosen */}
-          <div className="p-4 bg-amber-50 rounded-2xl border border-amber-100">
-            <p className="text-xs font-black text-amber-600 uppercase tracking-widest mb-1">وضع العرض التجريبي</p>
-            <p className="text-[10px] text-amber-500 mb-3 font-bold">انقر لتسجيل الدخول بدور محدد مسبقاً</p>
-            <div className="grid grid-cols-2 gap-2">
-              {DEMO_ACCOUNTS.map(d => (
-                <button
-                  key={d.email}
-                  onClick={() => quickLogin(d)}
-                  disabled={loading}
-                  className="text-right p-2 bg-white rounded-xl border border-amber-100 hover:border-primary hover:shadow-md transition-all group disabled:opacity-50"
-                >
-                  <p className="text-xs font-black text-gray-800 group-hover:text-primary">{d.name}</p>
-                  <p className="text-[10px] text-amber-600 font-bold uppercase tracking-wider">{ROLE_LABELS[d.role]}</p>
-                </button>
-              ))}
+          {/* Demo panel — only rendered in development builds */}
+          {isDev && DEMO_ACCOUNTS.length > 0 && (
+            <div className="p-4 bg-amber-50 rounded-2xl border border-amber-200">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-xs font-black text-amber-700 uppercase tracking-widest">DEV — وضع العرض التجريبي</span>
+              </div>
+              <p className="text-[10px] text-amber-600 mb-3 font-bold">هذه الحسابات متاحة في بيئة التطوير فقط</p>
+              <div className="grid grid-cols-2 gap-2">
+                {DEMO_ACCOUNTS.map(d => (
+                  <button
+                    key={d.email}
+                    onClick={() => quickLogin(d)}
+                    disabled={loading}
+                    className="text-right p-2 bg-white rounded-xl border border-amber-200 hover:border-primary hover:shadow-md transition-all group disabled:opacity-50"
+                  >
+                    <p className="text-xs font-black text-gray-800 group-hover:text-primary">{d.name}</p>
+                    <p className="text-[10px] text-amber-600 font-bold uppercase tracking-wider">{ROLE_LABELS[d.role]}</p>
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
         </motion.div>
 
-        {/* Login form — login only, no self-registration */}
+        {/* Login form — login only, no public self-registration */}
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           className="w-full max-w-md bg-white rounded-[2rem] shadow-2xl shadow-blue-900/10 border border-gray-100 overflow-hidden"
         >
-          {/* Header */}
           <div className="flex items-center gap-3 px-8 py-6 border-b bg-primary/5">
             <LogIn className="w-5 h-5 text-primary" />
             <span className="font-black text-primary text-sm tracking-tight">تسجيل الدخول إلى النظام</span>
@@ -133,7 +143,6 @@ export default function LoginPage() {
               <p className="text-gray-400 text-sm mt-1 font-bold">سجّل دخولك للوصول إلى النظام</p>
             </div>
 
-            {/* Email */}
             <div>
               <label className="block text-xs font-black text-gray-500 uppercase tracking-widest mb-2">البريد الإلكتروني</label>
               <div className="relative">
@@ -150,7 +159,6 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {/* Password */}
             <div>
               <label className="block text-xs font-black text-gray-500 uppercase tracking-widest mb-2">كلمة المرور</label>
               <div className="relative">
@@ -170,7 +178,6 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {/* Error */}
             <AnimatePresence>
               {error && (
                 <motion.div
@@ -185,7 +192,6 @@ export default function LoginPage() {
               )}
             </AnimatePresence>
 
-            {/* Submit */}
             <button
               type="submit"
               disabled={loading}
@@ -203,24 +209,26 @@ export default function LoginPage() {
               لإنشاء حساب جديد، تواصل مع مدير النظام
             </p>
 
-            {/* Demo note for mobile */}
-            <div className="lg:hidden pt-2 border-t">
-              <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest mb-3 text-center">وضع العرض التجريبي</p>
-              <div className="grid grid-cols-2 gap-2">
-                {DEMO_ACCOUNTS.slice(0, 4).map(d => (
-                  <button
-                    key={d.email}
-                    type="button"
-                    onClick={() => quickLogin(d)}
-                    disabled={loading}
-                    className="text-right p-2 bg-amber-50 rounded-xl border border-amber-100 hover:border-primary transition-all"
-                  >
-                    <p className="text-xs font-black text-gray-800">{d.name}</p>
-                    <p className="text-[10px] text-amber-600 font-bold">{ROLE_LABELS[d.role]}</p>
-                  </button>
-                ))}
+            {/* Mobile dev-only demo panel */}
+            {isDev && DEMO_ACCOUNTS.length > 0 && (
+              <div className="lg:hidden pt-2 border-t">
+                <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest mb-3 text-center">DEV — حسابات تجريبية</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {DEMO_ACCOUNTS.slice(0, 4).map(d => (
+                    <button
+                      key={d.email}
+                      type="button"
+                      onClick={() => quickLogin(d)}
+                      disabled={loading}
+                      className="text-right p-2 bg-amber-50 rounded-xl border border-amber-100 hover:border-primary transition-all"
+                    >
+                      <p className="text-xs font-black text-gray-800">{d.name}</p>
+                      <p className="text-[10px] text-amber-600 font-bold">{ROLE_LABELS[d.role]}</p>
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
           </form>
         </motion.div>
       </div>

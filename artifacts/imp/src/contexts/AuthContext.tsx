@@ -23,33 +23,37 @@ interface AuthContextValue {
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
-  /** Only for demo environment seeding — role is from a hardcoded server map, not user input */
-  seedDemoAccount: (email: string, password: string, name: string, role: Role) => Promise<void>;
+  /**
+   * Development-only helper for seeding demo accounts.
+   * Undefined in production builds — callers must guard with import.meta.env.DEV.
+   * The role comes from a hardcoded server-side map in LoginPage, never from user input.
+   */
+  seedDemoAccount?: (email: string, password: string, name: string, role: Role) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export const ROLE_LABELS: Record<Role, string> = {
-  admin: 'مدير النظام',
-  doctor: 'طبيب',
-  nurse: 'ممرض',
-  lab_tech: 'فني مختبر',
+  admin:        'مدير النظام',
+  doctor:       'طبيب',
+  nurse:        'ممرض',
+  lab_tech:     'فني مختبر',
   receptionist: 'موظف استقبال',
-  pharmacist: 'صيدلاني',
+  pharmacist:   'صيدلاني',
 };
 
-// Fallback keys — used when Firestore is unavailable (pre-existing permission issue)
+// localStorage fallback keys — used only when Firestore is unavailable
 const LS_ROLE_KEY = (uid: string) => `imp_role_${uid}`;
 const LS_NAME_KEY = (uid: string) => `imp_name_${uid}`;
 
-async function fetchRoleFromFirestore(uid: string): Promise<{ role: Role; displayName: string } | null> {
+async function fetchProfileFromFirestore(uid: string): Promise<{ role: Role; displayName: string } | null> {
   try {
     const db = getDb();
     if (!db) return null;
     const snap = await getDoc(doc(db, 'userProfiles', uid));
     if (snap.exists()) {
-      const data = snap.data();
-      return { role: (data.role as Role) ?? 'receptionist', displayName: data.displayName ?? '' };
+      const d = snap.data();
+      return { role: (d.role as Role) ?? 'receptionist', displayName: d.displayName ?? '' };
     }
   } catch {
     // Firestore unavailable — fall through to localStorage
@@ -61,31 +65,29 @@ async function saveProfileToFirestore(uid: string, role: Role, displayName: stri
   try {
     const db = getDb();
     if (!db) return;
-    await setDoc(doc(db, 'userProfiles', uid), {
-      role,
-      displayName,
-      updatedAt: serverTimestamp(),
-    });
+    await setDoc(doc(db, 'userProfiles', uid), { role, displayName, updatedAt: serverTimestamp() });
   } catch {
-    // Firestore unavailable — localStorage is the fallback
+    // Firestore unavailable — localStorage already written
   }
 }
 
 async function resolveAuthUser(fbUser: User): Promise<AuthUser> {
-  // Firestore is authoritative; localStorage is only a fallback
-  const firestoreProfile = await fetchRoleFromFirestore(fbUser.uid);
-  if (firestoreProfile) {
+  // Firestore is the authoritative source for role
+  const profile = await fetchProfileFromFirestore(fbUser.uid);
+  if (profile) {
     // Keep localStorage in sync for offline resilience
-    localStorage.setItem(LS_ROLE_KEY(fbUser.uid), firestoreProfile.role);
-    localStorage.setItem(LS_NAME_KEY(fbUser.uid), firestoreProfile.displayName);
+    localStorage.setItem(LS_ROLE_KEY(fbUser.uid), profile.role);
+    localStorage.setItem(LS_NAME_KEY(fbUser.uid), profile.displayName);
     return {
       uid: fbUser.uid,
       email: fbUser.email,
-      displayName: firestoreProfile.displayName || fbUser.email,
-      role: firestoreProfile.role,
+      displayName: profile.displayName || fbUser.email,
+      role: profile.role,
     };
   }
-  // Firestore unavailable — use localStorage
+  // Firestore unavailable — use localStorage as read-only fallback
+  // Note: localStorage is a UI convenience fallback only; Firestore rules
+  // still gate all data access server-side regardless of this value.
   const storedRole = localStorage.getItem(LS_ROLE_KEY(fbUser.uid)) as Role | null;
   const storedName = localStorage.getItem(LS_NAME_KEY(fbUser.uid));
   return {
@@ -97,20 +99,14 @@ async function resolveAuthUser(fbUser: User): Promise<AuthUser> {
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<AuthUser | null>(null);
+  const [user, setUser]       = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const auth = getAuthInstance();
     if (!auth) { setLoading(false); return; }
-
     const unsub = onAuthStateChanged(auth, async (fbUser) => {
-      if (fbUser) {
-        const authUser = await resolveAuthUser(fbUser);
-        setUser(authUser);
-      } else {
-        setUser(null);
-      }
+      setUser(fbUser ? await resolveAuthUser(fbUser) : null);
       setLoading(false);
     });
     return unsub;
@@ -120,8 +116,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const auth = getAuthInstance();
     if (!auth) throw new Error('Firebase Auth غير متاح');
     const cred = await signInWithEmailAndPassword(auth, email, password);
-    const authUser = await resolveAuthUser(cred.user);
-    setUser(authUser);
+    setUser(await resolveAuthUser(cred.user));
   };
 
   const logout = async () => {
@@ -131,32 +126,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
   };
 
-  /**
-   * seedDemoAccount — used ONLY for demo environment seeding from the login page.
-   * The role comes from the hardcoded DEMO_ACCOUNTS map, not from any user-supplied input.
-   * If the account already exists, it just logs in normally.
-   */
-  const seedDemoAccount = async (email: string, password: string, name: string, role: Role) => {
-    const auth = getAuthInstance();
-    if (!auth) throw new Error('Firebase Auth غير متاح');
-    try {
-      // Attempt login first (account may already exist)
-      const cred = await signInWithEmailAndPassword(auth, email, password);
-      const authUser = await resolveAuthUser(cred.user);
-      setUser(authUser);
-    } catch (loginErr: any) {
-      if (loginErr.code === 'auth/user-not-found' || loginErr.code === 'auth/invalid-credential') {
-        // First time: create the demo account with the server-defined role
-        const cred = await createUserWithEmailAndPassword(auth, email, password);
-        localStorage.setItem(LS_ROLE_KEY(cred.user.uid), role);
-        localStorage.setItem(LS_NAME_KEY(cred.user.uid), name);
-        await saveProfileToFirestore(cred.user.uid, role, name);
-        setUser({ uid: cred.user.uid, email: cred.user.email, displayName: name, role });
-      } else {
-        throw loginErr;
+  // seedDemoAccount is only included in development builds.
+  // In production, Vite's dead-code elimination removes it entirely.
+  const seedDemoAccount = import.meta.env.DEV
+    ? async (email: string, password: string, name: string, role: Role) => {
+        const auth = getAuthInstance();
+        if (!auth) throw new Error('Firebase Auth غير متاح');
+        try {
+          // Try login first (account may already exist from a prior dev session)
+          const cred = await signInWithEmailAndPassword(auth, email, password);
+          setUser(await resolveAuthUser(cred.user));
+        } catch (err: any) {
+          if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential') {
+            // First run: create the account; role comes from hardcoded DEMO_ACCOUNTS, not user input
+            const cred = await createUserWithEmailAndPassword(auth, email, password);
+            localStorage.setItem(LS_ROLE_KEY(cred.user.uid), role);
+            localStorage.setItem(LS_NAME_KEY(cred.user.uid), name);
+            await saveProfileToFirestore(cred.user.uid, role, name);
+            setUser({ uid: cred.user.uid, email: cred.user.email, displayName: name, role });
+          } else {
+            throw err;
+          }
+        }
       }
-    }
-  };
+    : undefined;
 
   return (
     <AuthContext.Provider value={{ user, loading, login, logout, seedDemoAccount }}>
