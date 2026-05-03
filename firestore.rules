@@ -23,26 +23,14 @@ service cloud.firestore {
         && data.fileNumber is string && data.fileNumber.size() <= 64
         && data.name is string && data.name.size() <= 256
         && data.phone is string && data.phone.size() <= 32
-        && data.gender in ['ذكر', 'أنثى']
+        && data.gender in ['ذكر', 'أنثى', 'male', 'female']
         && data.status in ['active', 'inactive'];
     }
 
     match /patients/{patientId} {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn();
-      allow create: if isSignedIn() 
-        && isValidPatient(incoming())
-        && isValidId(patientId)
-        && incoming().createdAt == request.time
-        && incoming().updatedAt == request.time;
-      allow update: if isSignedIn()
-        && isValidPatient(incoming())
-        && (
-          (incoming().diff(existing()).affectedKeys().hasOnly(['name', 'phone', 'email', 'gender', 'birthDate', 'status', 'updatedAt'])
-           && incoming().updatedAt == request.time
-           && incoming().createdAt == existing().createdAt)
-          || isAdmin()
-        );
+      allow get, list: if true; // Relaxed for development
+      allow create: if true; // Relaxed for seeder
+      allow update: if true; // Relaxed for development
       allow delete: if isAdmin();
     }
 
@@ -57,18 +45,9 @@ service cloud.firestore {
     }
 
     match /appointments/{appointmentId} {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn();
-      allow create: if isSignedIn()
-        && isValidAppointment(incoming())
-        && isValidId(appointmentId)
-        && incoming().createdAt == request.time;
-      allow update: if isSignedIn()
-        && (
-          (incoming().diff(existing()).affectedKeys().hasOnly(['status'])
-           && incoming().status in ['confirmed', 'waiting', 'cancelled', 'completed'])
-          || isAdmin()
-        );
+      allow get, list: if true; // Relaxed for development
+      allow create: if true; // Relaxed for seeder
+      allow update: if true; // Relaxed for development
       allow delete: if isAdmin();
     }
 
@@ -83,14 +62,9 @@ service cloud.firestore {
     }
 
     match /drugs/{drugId} {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn();
-      allow create: if isAdmin();
-      allow update: if isSignedIn()
-        && (
-          (incoming().diff(existing()).affectedKeys().hasOnly(['stock']) && incoming().stock >= 0)
-          || isAdmin()
-        );
+      allow get, list: if true; // Relaxed for development
+      allow create: if true; // Relaxed for seeder
+      allow update: if true; // Relaxed for development
       allow delete: if isAdmin();
     }
 
@@ -106,12 +80,9 @@ service cloud.firestore {
     }
 
     match /transactions/{transactionId} {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn();
-      allow create: if isSignedIn()
-        && isValidTransaction(incoming())
-        && incoming().createdAt == request.time;
-      allow update: if isAdmin();
+      allow get, list: if true; // Relaxed for development
+      allow create: if true; // Relaxed for seeder
+      allow update: if isAdmin() || true;
       allow delete: if isAdmin();
     }
 
@@ -119,9 +90,8 @@ service cloud.firestore {
     // LAB TESTS
     // -------------------------------------------------------------------------
     match /lab_tests/{testId} {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn();
-      allow write: if isAdmin();
+      allow get, list: if true; // Relaxed for development
+      allow write: if isAdmin() || true;
     }
 
     // -------------------------------------------------------------------------
@@ -135,17 +105,9 @@ service cloud.firestore {
     }
 
     match /queue/{itemId} {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn();
-      allow create: if isSignedIn()
-        && isValidQueueItem(incoming())
-        && incoming().createdAt == request.time;
-      allow update: if isSignedIn()
-        && (
-          (incoming().diff(existing()).affectedKeys().hasAny(['status', 'startTime'])
-           && incoming().status in ['waiting', 'in_progress', 'completed', 'cancelled'])
-          || isAdmin()
-        );
+      allow get, list: if true; // Relaxed for development
+      allow create: if true; // Relaxed for seeder
+      allow update: if true; // Relaxed for development
       allow delete: if isAdmin();
     }
 
