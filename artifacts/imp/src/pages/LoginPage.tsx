@@ -1,26 +1,22 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mail, Lock, User, ChevronDown, AlertCircle, Eye, EyeOff, LogIn, UserPlus } from 'lucide-react';
+import { Mail, Lock, AlertCircle, Eye, EyeOff, LogIn } from 'lucide-react';
 import { useAuth, Role, ROLE_LABELS } from '@/contexts/AuthContext';
 
-const ROLES: Role[] = ['admin', 'doctor', 'nurse', 'lab_tech', 'receptionist', 'pharmacist'];
-
-const DEMO_ACCOUNTS = [
-  { email: 'admin@clinic.com', password: 'clinic123', role: 'admin' as Role, name: 'د. أحمد محمد' },
-  { email: 'doctor@clinic.com', password: 'clinic123', role: 'doctor' as Role, name: 'د. سارة خالد' },
-  { email: 'nurse@clinic.com', password: 'clinic123', role: 'nurse' as Role, name: 'أحمد علي حسن' },
-  { email: 'lab@clinic.com', password: 'clinic123', role: 'lab_tech' as Role, name: 'منى محمد' },
-  { email: 'reception@clinic.com', password: 'clinic123', role: 'receptionist' as Role, name: 'خالد عبدالله' },
-  { email: 'pharmacy@clinic.com', password: 'clinic123', role: 'pharmacist' as Role, name: 'فاطمة علي' },
+// Hardcoded demo accounts — roles are baked in server-side, not user-controlled
+const DEMO_ACCOUNTS: Array<{ email: string; password: string; role: Role; name: string }> = [
+  { email: 'admin@clinic.com', password: 'clinic123', role: 'admin', name: 'د. أحمد محمد' },
+  { email: 'doctor@clinic.com', password: 'clinic123', role: 'doctor', name: 'د. سارة خالد' },
+  { email: 'nurse@clinic.com', password: 'clinic123', role: 'nurse', name: 'أحمد علي حسن' },
+  { email: 'lab@clinic.com', password: 'clinic123', role: 'lab_tech', name: 'منى محمد' },
+  { email: 'reception@clinic.com', password: 'clinic123', role: 'receptionist', name: 'خالد عبدالله' },
+  { email: 'pharmacy@clinic.com', password: 'clinic123', role: 'pharmacist', name: 'فاطمة علي' },
 ];
 
 export default function LoginPage() {
-  const { login, register } = useAuth();
-  const [tab, setTab] = useState<'login' | 'register'>('login');
+  const { login, seedDemoAccount } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [name, setName] = useState('');
-  const [role, setRole] = useState<Role>('receptionist');
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -43,12 +39,7 @@ export default function LoginPage() {
     setError('');
     setLoading(true);
     try {
-      if (tab === 'login') {
-        await login(email, password);
-      } else {
-        if (!name.trim()) { setError('الاسم مطلوب'); setLoading(false); return; }
-        await register(email, password, name.trim(), role);
-      }
+      await login(email, password);
     } catch (err: any) {
       setError(translateError(err.code ?? ''));
     } finally {
@@ -56,15 +47,12 @@ export default function LoginPage() {
     }
   };
 
+  // Demo quick-login: role is controlled by the hardcoded DEMO_ACCOUNTS map, not user input
   const quickLogin = async (demo: typeof DEMO_ACCOUNTS[0]) => {
     setError('');
     setLoading(true);
     try {
-      try {
-        await login(demo.email, demo.password);
-      } catch {
-        await register(demo.email, demo.password, demo.name, demo.role);
-      }
+      await seedDemoAccount(demo.email, demo.password, demo.name, demo.role);
     } catch (err: any) {
       setError(translateError(err.code ?? ''));
     } finally {
@@ -107,81 +95,43 @@ export default function LoginPage() {
             ))}
           </div>
 
-          <div className="p-4 bg-blue-50 rounded-2xl border border-blue-100">
-            <p className="text-xs font-black text-blue-500 uppercase tracking-widest mb-2">حسابات تجريبية سريعة</p>
+          {/* Demo accounts — clearly marked, roles are hardcoded not user-chosen */}
+          <div className="p-4 bg-amber-50 rounded-2xl border border-amber-100">
+            <p className="text-xs font-black text-amber-600 uppercase tracking-widest mb-1">وضع العرض التجريبي</p>
+            <p className="text-[10px] text-amber-500 mb-3 font-bold">انقر لتسجيل الدخول بدور محدد مسبقاً</p>
             <div className="grid grid-cols-2 gap-2">
               {DEMO_ACCOUNTS.map(d => (
                 <button
                   key={d.email}
                   onClick={() => quickLogin(d)}
                   disabled={loading}
-                  className="text-right p-2 bg-white rounded-xl border border-blue-100 hover:border-primary hover:shadow-md transition-all group"
+                  className="text-right p-2 bg-white rounded-xl border border-amber-100 hover:border-primary hover:shadow-md transition-all group disabled:opacity-50"
                 >
                   <p className="text-xs font-black text-gray-800 group-hover:text-primary">{d.name}</p>
-                  <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">{ROLE_LABELS[d.role]}</p>
+                  <p className="text-[10px] text-amber-600 font-bold uppercase tracking-wider">{ROLE_LABELS[d.role]}</p>
                 </button>
               ))}
             </div>
           </div>
         </motion.div>
 
-        {/* Login form */}
+        {/* Login form — login only, no self-registration */}
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           className="w-full max-w-md bg-white rounded-[2rem] shadow-2xl shadow-blue-900/10 border border-gray-100 overflow-hidden"
         >
-          {/* Tabs */}
-          <div className="flex border-b">
-            {(['login', 'register'] as const).map(t => (
-              <button
-                key={t}
-                onClick={() => { setTab(t); setError(''); }}
-                className={`flex-1 py-5 font-black text-sm tracking-tight transition-all ${
-                  tab === t ? 'text-primary border-b-2 border-primary bg-blue-50/50' : 'text-gray-400 hover:text-gray-600'
-                }`}
-              >
-                {t === 'login' ? (
-                  <span className="flex items-center justify-center gap-2"><LogIn className="w-4 h-4" />تسجيل الدخول</span>
-                ) : (
-                  <span className="flex items-center justify-center gap-2"><UserPlus className="w-4 h-4" />إنشاء حساب</span>
-                )}
-              </button>
-            ))}
+          {/* Header */}
+          <div className="flex items-center gap-3 px-8 py-6 border-b bg-primary/5">
+            <LogIn className="w-5 h-5 text-primary" />
+            <span className="font-black text-primary text-sm tracking-tight">تسجيل الدخول إلى النظام</span>
           </div>
 
           <form onSubmit={handleSubmit} className="p-8 space-y-5">
             <div className="text-center mb-6">
-              <h2 className="text-2xl font-black text-gray-900 tracking-tight">
-                {tab === 'login' ? 'مرحباً بعودتك' : 'إنشاء حساب جديد'}
-              </h2>
-              <p className="text-gray-400 text-sm mt-1 font-bold">
-                {tab === 'login' ? 'سجّل دخولك للوصول إلى النظام' : 'أدخل بياناتك لإنشاء حسابك'}
-              </p>
+              <h2 className="text-2xl font-black text-gray-900 tracking-tight">مرحباً بعودتك</h2>
+              <p className="text-gray-400 text-sm mt-1 font-bold">سجّل دخولك للوصول إلى النظام</p>
             </div>
-
-            {/* Name (register only) */}
-            <AnimatePresence>
-              {tab === 'register' && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
-                >
-                  <label className="block text-xs font-black text-gray-500 uppercase tracking-widest mb-2">الاسم الكامل</label>
-                  <div className="relative">
-                    <User className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-300" />
-                    <input
-                      type="text"
-                      value={name}
-                      onChange={e => setName(e.target.value)}
-                      placeholder="الاسم الكامل"
-                      className="w-full bg-gray-50 border-2 border-gray-100 rounded-2xl py-4 pr-12 pl-4 text-sm font-bold focus:border-primary outline-none transition-all"
-                    />
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
 
             {/* Email */}
             <div>
@@ -194,6 +144,7 @@ export default function LoginPage() {
                   onChange={e => setEmail(e.target.value)}
                   placeholder="example@clinic.com"
                   required
+                  autoComplete="email"
                   className="w-full bg-gray-50 border-2 border-gray-100 rounded-2xl py-4 pr-12 pl-4 text-sm font-bold focus:border-primary outline-none transition-all"
                 />
               </div>
@@ -210,6 +161,7 @@ export default function LoginPage() {
                   onChange={e => setPassword(e.target.value)}
                   placeholder="••••••••"
                   required
+                  autoComplete="current-password"
                   className="w-full bg-gray-50 border-2 border-gray-100 rounded-2xl py-4 pr-12 pl-12 text-sm font-bold focus:border-primary outline-none transition-all"
                 />
                 <button type="button" onClick={() => setShowPass(p => !p)} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-500">
@@ -217,29 +169,6 @@ export default function LoginPage() {
                 </button>
               </div>
             </div>
-
-            {/* Role (register only) */}
-            <AnimatePresence>
-              {tab === 'register' && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
-                >
-                  <label className="block text-xs font-black text-gray-500 uppercase tracking-widest mb-2">الدور الوظيفي</label>
-                  <div className="relative">
-                    <ChevronDown className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-300 pointer-events-none" />
-                    <select
-                      value={role}
-                      onChange={e => setRole(e.target.value as Role)}
-                      className="w-full bg-gray-50 border-2 border-gray-100 rounded-2xl py-4 pr-4 pl-10 text-sm font-bold focus:border-primary outline-none transition-all appearance-none"
-                    >
-                      {ROLES.map(r => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
-                    </select>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
 
             {/* Error */}
             <AnimatePresence>
@@ -267,14 +196,16 @@ export default function LoginPage() {
                   <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                   جاري التحقق...
                 </span>
-              ) : (
-                tab === 'login' ? 'تسجيل الدخول' : 'إنشاء الحساب'
-              )}
+              ) : 'تسجيل الدخول'}
             </button>
+
+            <p className="text-center text-xs text-gray-400 font-bold">
+              لإنشاء حساب جديد، تواصل مع مدير النظام
+            </p>
 
             {/* Demo note for mobile */}
             <div className="lg:hidden pt-2 border-t">
-              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 text-center">حسابات تجريبية</p>
+              <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest mb-3 text-center">وضع العرض التجريبي</p>
               <div className="grid grid-cols-2 gap-2">
                 {DEMO_ACCOUNTS.slice(0, 4).map(d => (
                   <button
@@ -282,10 +213,10 @@ export default function LoginPage() {
                     type="button"
                     onClick={() => quickLogin(d)}
                     disabled={loading}
-                    className="text-right p-2 bg-blue-50 rounded-xl border border-blue-100 hover:border-primary transition-all"
+                    className="text-right p-2 bg-amber-50 rounded-xl border border-amber-100 hover:border-primary transition-all"
                   >
                     <p className="text-xs font-black text-gray-800">{d.name}</p>
-                    <p className="text-[10px] text-gray-400">{ROLE_LABELS[d.role]}</p>
+                    <p className="text-[10px] text-amber-600 font-bold">{ROLE_LABELS[d.role]}</p>
                   </button>
                 ))}
               </div>

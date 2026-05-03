@@ -26,7 +26,10 @@ service cloud.firestore {
     }
 
     // User profiles — stores role and display name
-    // Each authenticated user can read/write only their own profile
+    // - Read: owner only
+    // - Create: owner only; role is set once at account creation
+    // - Update: owner may update displayName only — role is immutable from client
+    // - Delete: never (role changes must go through admin/backend)
     match /userProfiles/{userId} {
       allow read: if isOwner(userId);
       allow create: if isOwner(userId) &&
@@ -34,7 +37,9 @@ service cloud.firestore {
         incoming().role is string &&
         incoming().displayName is string;
       allow update: if isOwner(userId) &&
-        incoming().diff(existing()).affectedKeys().hasOnly(['role', 'displayName', 'updatedAt']);
+        // Explicitly block any attempt to change the role field
+        !('role' in incoming().diff(existing()).affectedKeys()) &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'updatedAt']);
       allow delete: if false;
     }
 
@@ -82,7 +87,7 @@ service cloud.firestore {
       allow write: if isSignedIn();
     }
 
-    // Financial transactions — authenticated users only
+    // Financial transactions — authenticated users only; immutable after creation
     match /transactions/{transactionId} {
       allow read: if isSignedIn();
       allow create: if isSignedIn();
