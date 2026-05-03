@@ -25,40 +25,57 @@ service cloud.firestore {
       return resource.data;
     }
 
-    // User profiles — stores role and display name
-    // - Read: owner only
-    // - Create: owner only; role is set once at account creation
-    // - Update: owner may update displayName only — role is immutable from client
-    // - Delete: never (role changes must go through admin/backend)
+    // User profiles
+    //
+    // Security model:
+    //   - Any authenticated user may READ their own profile.
+    //   - Any authenticated user may CREATE their own profile, BUT the 'role' field
+    //     is validated to be 'receptionist' only. Elevated roles (admin, doctor, …)
+    //     must be set by a server-side admin process (Firebase Admin SDK or the
+    //     Firebase console) — never from client code.
+    //   - UPDATE is restricted to 'displayName' and 'updatedAt' only; 'role' is
+    //     immutable from the client after creation.
+    //   - DELETE is never allowed from the client.
     match /userProfiles/{userId} {
       allow read: if isOwner(userId);
-      allow create: if isOwner(userId) &&
-        incoming().keys().hasAll(['role', 'displayName']) &&
-        incoming().role is string &&
-        incoming().displayName is string;
-      allow update: if isOwner(userId) &&
-        // Explicitly block any attempt to change the role field
-        !('role' in incoming().diff(existing()).affectedKeys()) &&
-        incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'updatedAt']);
+
+      allow create: if isOwner(userId)
+        && incoming().keys().hasAll(['role', 'displayName'])
+        && incoming().role is string
+        && incoming().displayName is string
+        // Enforce safe default: clients may only self-create with the least-privileged role.
+        // Elevated roles (admin, doctor, nurse, lab_tech, pharmacist) must be
+        // assigned server-side via the Firebase Admin SDK.
+        && incoming().role == 'receptionist';
+
+      allow update: if isOwner(userId)
+        // Block any attempt to change the role field from the client
+        && !('role' in incoming().diff(existing()).affectedKeys())
+        && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'updatedAt']);
+
       allow delete: if false;
     }
 
     // Validation helpers
     function isValidPatient(data) {
-      return data.keys().hasAll(['name', 'phone', 'fileNumber']) &&
-             data.name is string && data.name.size() <= 100 &&
-             data.phone is string && data.phone.size() <= 20 &&
-             data.fileNumber is string && data.fileNumber.size() <= 20;
+      return data.keys().hasAll(['name', 'phone', 'fileNumber'])
+        && data.name is string && data.name.size() <= 100
+        && data.phone is string && data.phone.size() <= 20
+        && data.fileNumber is string && data.fileNumber.size() <= 20;
     }
 
     function isValidAppointment(data) {
-      return data.keys().hasAll(['patientId', 'date', 'startTime']) &&
-             data.patientId is string && data.patientId.size() <= 100 &&
-             data.date is string &&
-             data.startTime is string;
+      return data.keys().hasAll(['patientId', 'date', 'startTime'])
+        && data.patientId is string && data.patientId.size() <= 100
+        && data.date is string
+        && data.startTime is string;
     }
 
-    // Patients — authenticated users only
+    // All data collections require an authenticated session.
+    // Fine-grained role enforcement beyond "must be signed in" requires
+    // Firebase custom claims set by the Admin SDK, which is out of scope
+    // for this client-only application.
+
     match /patients/{patientId} {
       allow read: if isSignedIn();
       allow create: if isSignedIn() && isValidPatient(incoming());
@@ -66,7 +83,6 @@ service cloud.firestore {
       allow delete: if isSignedIn();
     }
 
-    // Appointments — authenticated users only
     match /appointments/{appointmentId} {
       allow read: if isSignedIn();
       allow create: if isSignedIn() && isValidAppointment(incoming());
@@ -74,27 +90,24 @@ service cloud.firestore {
       allow delete: if isSignedIn();
     }
 
-    // Clinical records — authenticated users only
     match /records/{recordId} {
       allow read: if isSignedIn();
       allow create: if isSignedIn();
       allow update: if isSignedIn();
     }
 
-    // Drugs / pharmacy — authenticated users only
     match /drugs/{drugId} {
       allow read: if isSignedIn();
       allow write: if isSignedIn();
     }
 
-    // Financial transactions — authenticated users only; immutable after creation
+    // Transactions are immutable after creation
     match /transactions/{transactionId} {
       allow read: if isSignedIn();
       allow create: if isSignedIn();
       allow update: if false;
     }
 
-    // Queue — authenticated users only
     match /queue/{queueId} {
       allow read: if isSignedIn();
       allow create: if isSignedIn();

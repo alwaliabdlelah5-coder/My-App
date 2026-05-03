@@ -25,8 +25,11 @@ interface AuthContextValue {
   logout: () => Promise<void>;
   /**
    * Development-only helper for seeding demo accounts.
-   * Undefined in production builds — callers must guard with import.meta.env.DEV.
-   * The role comes from a hardcoded server-side map in LoginPage, never from user input.
+   * Undefined in production — callers must guard with import.meta.env.DEV.
+   * Roles are stored ONLY in localStorage (DEV convenience); they are NOT
+   * written to Firestore because the Firestore rule restricts client-created
+   * profiles to 'receptionist'. Elevated demo roles are therefore a DEV-only
+   * local-state concern, not a Firestore security concern.
    */
   seedDemoAccount?: (email: string, password: string, name: string, role: Role) => Promise<void>;
 }
@@ -42,7 +45,9 @@ export const ROLE_LABELS: Record<Role, string> = {
   pharmacist:   'صيدلاني',
 };
 
-// localStorage fallback keys — used only when Firestore is unavailable
+// localStorage keys — offline fallback and DEV demo roles only.
+// Firestore is the authoritative role source; localStorage is never trusted
+// when Firestore is reachable.
 const LS_ROLE_KEY = (uid: string) => `imp_role_${uid}`;
 const LS_NAME_KEY = (uid: string) => `imp_name_${uid}`;
 
@@ -56,23 +61,29 @@ async function fetchProfileFromFirestore(uid: string): Promise<{ role: Role; dis
       return { role: (d.role as Role) ?? 'receptionist', displayName: d.displayName ?? '' };
     }
   } catch {
-    // Firestore unavailable — fall through to localStorage
+    // Firestore unavailable — caller falls back to localStorage
   }
   return null;
 }
 
-async function saveProfileToFirestore(uid: string, role: Role, displayName: string): Promise<void> {
+async function createFirestoreProfile(uid: string, displayName: string): Promise<void> {
+  // Firestore rules enforce role == 'receptionist' on create.
+  // Elevated roles must be set by an admin via Firebase Admin SDK.
   try {
     const db = getDb();
     if (!db) return;
-    await setDoc(doc(db, 'userProfiles', uid), { role, displayName, updatedAt: serverTimestamp() });
+    await setDoc(doc(db, 'userProfiles', uid), {
+      role: 'receptionist',
+      displayName,
+      updatedAt: serverTimestamp(),
+    });
   } catch {
-    // Firestore unavailable — localStorage already written
+    // Firestore unavailable — localStorage fallback already written
   }
 }
 
 async function resolveAuthUser(fbUser: User): Promise<AuthUser> {
-  // Firestore is the authoritative source for role
+  // Firestore is the authoritative source; localStorage is the offline fallback.
   const profile = await fetchProfileFromFirestore(fbUser.uid);
   if (profile) {
     // Keep localStorage in sync for offline resilience
@@ -85,9 +96,9 @@ async function resolveAuthUser(fbUser: User): Promise<AuthUser> {
       role: profile.role,
     };
   }
-  // Firestore unavailable — use localStorage as read-only fallback
-  // Note: localStorage is a UI convenience fallback only; Firestore rules
-  // still gate all data access server-side regardless of this value.
+  // Firestore unavailable — use localStorage.
+  // Note: localStorage role affects UI routing only. All actual data access
+  // still requires Firebase Auth (enforced by Firestore rules server-side).
   const storedRole = localStorage.getItem(LS_ROLE_KEY(fbUser.uid)) as Role | null;
   const storedName = localStorage.getItem(LS_NAME_KEY(fbUser.uid));
   return {
@@ -126,23 +137,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
   };
 
-  // seedDemoAccount is only included in development builds.
-  // In production, Vite's dead-code elimination removes it entirely.
+  // seedDemoAccount is tree-shaken out of production builds by Vite.
   const seedDemoAccount = import.meta.env.DEV
     ? async (email: string, password: string, name: string, role: Role) => {
         const auth = getAuthInstance();
         if (!auth) throw new Error('Firebase Auth غير متاح');
         try {
-          // Try login first (account may already exist from a prior dev session)
+          // Account may already exist from a prior DEV session
           const cred = await signInWithEmailAndPassword(auth, email, password);
-          setUser(await resolveAuthUser(cred.user));
+          // Prefer the Firestore role (receptionist) if it exists; override with
+          // the DEV-only localStorage demo role so the demo is usable.
+          localStorage.setItem(LS_ROLE_KEY(cred.user.uid), role);
+          localStorage.setItem(LS_NAME_KEY(cred.user.uid), name);
+          setUser({ uid: cred.user.uid, email: cred.user.email, displayName: name, role });
         } catch (err: any) {
           if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential') {
-            // First run: create the account; role comes from hardcoded DEMO_ACCOUNTS, not user input
+            // First run — create the Firebase Auth account
             const cred = await createUserWithEmailAndPassword(auth, email, password);
+            // Store demo role in localStorage only (not Firestore — rules restrict to 'receptionist')
             localStorage.setItem(LS_ROLE_KEY(cred.user.uid), role);
             localStorage.setItem(LS_NAME_KEY(cred.user.uid), name);
-            await saveProfileToFirestore(cred.user.uid, role, name);
+            // Attempt Firestore profile creation (will succeed with role='receptionist' per rules,
+            // but localStorage demo role takes precedence for this DEV session)
+            await createFirestoreProfile(cred.user.uid, name);
             setUser({ uid: cred.user.uid, email: cred.user.email, displayName: name, role });
           } else {
             throw err;
