@@ -8,8 +8,9 @@ import {
 } from 'firebase/auth';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { getAuthInstance, getDb } from '@/lib/firebase';
+import { type Role } from '@/lib/roles';
 
-export type Role = 'admin' | 'doctor' | 'nurse' | 'lab_tech' | 'receptionist' | 'pharmacist';
+export type { Role } from '@/lib/roles';
 
 export interface AuthUser {
   uid: string;
@@ -36,15 +37,6 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-export const ROLE_LABELS: Record<Role, string> = {
-  admin:        'مدير النظام',
-  doctor:       'طبيب',
-  nurse:        'ممرض',
-  lab_tech:     'فني مختبر',
-  receptionist: 'موظف استقبال',
-  pharmacist:   'صيدلاني',
-};
-
 // localStorage keys — offline fallback and DEV demo roles only.
 // Firestore is the authoritative role source; localStorage is never trusted
 // when Firestore is reachable.
@@ -67,8 +59,6 @@ async function fetchProfileFromFirestore(uid: string): Promise<{ role: Role; dis
 }
 
 async function createFirestoreProfile(uid: string, displayName: string): Promise<void> {
-  // Firestore rules enforce role == 'receptionist' on create.
-  // Elevated roles must be set by an admin via Firebase Admin SDK.
   try {
     const db = getDb();
     if (!db) return;
@@ -157,8 +147,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             // Store demo role in localStorage only (not Firestore — rules restrict to 'receptionist')
             localStorage.setItem(LS_ROLE_KEY(cred.user.uid), role);
             localStorage.setItem(LS_NAME_KEY(cred.user.uid), name);
-            // Attempt Firestore profile creation (will succeed with role='receptionist' per rules,
-            // but localStorage demo role takes precedence for this DEV session)
+            // Attempt Firestore profile creation
             await createFirestoreProfile(cred.user.uid, name);
             setUser({ uid: cred.user.uid, email: cred.user.email, displayName: name, role });
           } else {

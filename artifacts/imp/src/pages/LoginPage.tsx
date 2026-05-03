@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Mail, Lock, AlertCircle, Eye, EyeOff, LogIn } from 'lucide-react';
-import { useAuth, Role, ROLE_LABELS } from '@/contexts/AuthContext';
+import { useAuth, Role } from '@/contexts/AuthContext';
+import { ROLE_LABELS } from '@/lib/roles';
 
 // Demo accounts — only present in development builds (import.meta.env.DEV).
 // In production the entire DEMO_ACCOUNTS constant is tree-shaken out.

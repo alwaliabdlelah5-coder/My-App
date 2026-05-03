@@ -21,7 +21,8 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
-import { useAuth, Role, ROLE_LABELS } from '@/contexts/AuthContext';
+import { useAuth, Role } from '@/contexts/AuthContext';
+import { ROLE_LABELS } from '@/lib/roles';
 
 interface NavItem {
   name: string;
