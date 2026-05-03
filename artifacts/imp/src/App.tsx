@@ -15,6 +15,8 @@ import SettingsPage from "@/pages/SettingsPage";
 import NotFound from "@/pages/not-found";
 import { FirebaseSeeder } from "@/components/FirebaseSeeder";
 import { ToastProvider } from "@/components/Toast";
+import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import LoginPage from "@/pages/LoginPage";
 
 function Router() {
   return (
@@ -37,13 +39,40 @@ function Router() {
   );
 }
 
+function AppContent() {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
+          <p className="text-gray-400 font-bold text-sm tracking-widest uppercase">جاري التحميل...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <LoginPage />;
+  }
+
+  return (
+    <>
+      <FirebaseSeeder />
+      <Router />
+    </>
+  );
+}
+
 function App() {
   return (
     <ToastProvider>
-      <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-        <FirebaseSeeder />
-        <Router />
-      </WouterRouter>
+      <AuthProvider>
+        <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+          <AppContent />
+        </WouterRouter>
+      </AuthProvider>
     </ToastProvider>
   );
 }
