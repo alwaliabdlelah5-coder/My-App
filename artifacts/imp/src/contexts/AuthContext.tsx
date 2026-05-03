@@ -5,9 +5,9 @@ import {
   createUserWithEmailAndPassword,
   signOut,
   User,
-  AuthError,
 } from 'firebase/auth';
-import { getAuthInstance } from '@/lib/firebase';
+import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { getAuthInstance, getDb } from '@/lib/firebase';
 
 export type Role = 'admin' | 'doctor' | 'nurse' | 'lab_tech' | 'receptionist' | 'pharmacist';
 
@@ -28,9 +28,6 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-const ROLE_KEY = (uid: string) => `imp_role_${uid}`;
-const NAME_KEY = (uid: string) => `imp_name_${uid}`;
-
 export const ROLE_LABELS: Record<Role, string> = {
   admin: 'مدير النظام',
   doctor: 'طبيب',
@@ -40,13 +37,60 @@ export const ROLE_LABELS: Record<Role, string> = {
   pharmacist: 'صيدلاني',
 };
 
-function buildAuthUser(fbUser: User): AuthUser {
-  const storedRole = localStorage.getItem(ROLE_KEY(fbUser.uid)) as Role | null;
-  const storedName = localStorage.getItem(NAME_KEY(fbUser.uid));
+// Fallback keys for when Firestore is unavailable
+const LS_ROLE_KEY = (uid: string) => `imp_role_${uid}`;
+const LS_NAME_KEY = (uid: string) => `imp_name_${uid}`;
+
+async function fetchRoleFromFirestore(uid: string): Promise<{ role: Role; displayName: string } | null> {
+  try {
+    const db = getDb();
+    if (!db) return null;
+    const snap = await getDoc(doc(db, 'userProfiles', uid));
+    if (snap.exists()) {
+      const data = snap.data();
+      return { role: (data.role as Role) ?? 'receptionist', displayName: data.displayName ?? '' };
+    }
+  } catch {
+    // Firestore unavailable — fall through to localStorage
+  }
+  return null;
+}
+
+async function saveRoleToFirestore(uid: string, role: Role, displayName: string): Promise<void> {
+  try {
+    const db = getDb();
+    if (!db) return;
+    await setDoc(doc(db, 'userProfiles', uid), {
+      role,
+      displayName,
+      updatedAt: serverTimestamp(),
+    });
+  } catch {
+    // Firestore unavailable — localStorage is already set
+  }
+}
+
+async function buildAuthUser(fbUser: User): Promise<AuthUser> {
+  // Try Firestore first (authoritative)
+  const firestoreProfile = await fetchRoleFromFirestore(fbUser.uid);
+  if (firestoreProfile) {
+    // Keep localStorage in sync
+    localStorage.setItem(LS_ROLE_KEY(fbUser.uid), firestoreProfile.role);
+    localStorage.setItem(LS_NAME_KEY(fbUser.uid), firestoreProfile.displayName);
+    return {
+      uid: fbUser.uid,
+      email: fbUser.email,
+      displayName: firestoreProfile.displayName || fbUser.email,
+      role: firestoreProfile.role,
+    };
+  }
+  // Fall back to localStorage
+  const storedRole = localStorage.getItem(LS_ROLE_KEY(fbUser.uid)) as Role | null;
+  const storedName = localStorage.getItem(LS_NAME_KEY(fbUser.uid));
   return {
     uid: fbUser.uid,
     email: fbUser.email,
-    displayName: storedName ?? fbUser.displayName ?? fbUser.email,
+    displayName: storedName ?? fbUser.email,
     role: storedRole ?? 'receptionist',
   };
 }
@@ -59,9 +103,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const auth = getAuthInstance();
     if (!auth) { setLoading(false); return; }
 
-    const unsub = onAuthStateChanged(auth, (fbUser) => {
+    const unsub = onAuthStateChanged(auth, async (fbUser) => {
       if (fbUser) {
-        setUser(buildAuthUser(fbUser));
+        const authUser = await buildAuthUser(fbUser);
+        setUser(authUser);
       } else {
         setUser(null);
       }
@@ -74,15 +119,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const auth = getAuthInstance();
     if (!auth) throw new Error('Firebase Auth غير متاح');
     const cred = await signInWithEmailAndPassword(auth, email, password);
-    setUser(buildAuthUser(cred.user));
+    const authUser = await buildAuthUser(cred.user);
+    setUser(authUser);
   };
 
   const register = async (email: string, password: string, name: string, role: Role) => {
     const auth = getAuthInstance();
     if (!auth) throw new Error('Firebase Auth غير متاح');
     const cred = await createUserWithEmailAndPassword(auth, email, password);
-    localStorage.setItem(ROLE_KEY(cred.user.uid), role);
-    localStorage.setItem(NAME_KEY(cred.user.uid), name);
+
+    // Persist role in both Firestore and localStorage
+    localStorage.setItem(LS_ROLE_KEY(cred.user.uid), role);
+    localStorage.setItem(LS_NAME_KEY(cred.user.uid), name);
+    await saveRoleToFirestore(cred.user.uid, role, name);
+
     setUser({ uid: cred.user.uid, email: cred.user.email, displayName: name, role });
   };
 

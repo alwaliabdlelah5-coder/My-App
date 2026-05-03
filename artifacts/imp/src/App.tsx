@@ -17,23 +17,50 @@ import { FirebaseSeeder } from "@/components/FirebaseSeeder";
 import { ToastProvider } from "@/components/Toast";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import LoginPage from "@/pages/LoginPage";
+import ProtectedRoute from "@/components/ProtectedRoute";
 
 function Router() {
   return (
     <Switch>
-      <Route path="/" component={Dashboard} />
-      <Route path="/patients" component={PatientsPage} />
-      <Route path="/appointments" component={AppointmentsPage} />
-      <Route path="/clinic" component={ClinicPage} />
-      <Route path="/queue" component={QueuePage} />
-      <Route path="/lab" component={LabPage} />
-      <Route path="/pharmacy" component={PharmacyPage} />
-      <Route path="/inventory" component={InventoryPage} />
-      <Route path="/finance" component={FinancePage} />
-      <Route path="/hr" component={HRPage} />
-      <Route path="/reports" component={ReportsPage} />
-      <Route path="/users" component={UsersPage} />
-      <Route path="/settings" component={SettingsPage} />
+      <Route path="/">
+        {() => <ProtectedRoute component={Dashboard} allowedRoles={['admin','doctor','nurse','lab_tech','receptionist','pharmacist']} />}
+      </Route>
+      <Route path="/patients">
+        {() => <ProtectedRoute component={PatientsPage} allowedRoles={['admin','doctor','nurse','receptionist','lab_tech']} />}
+      </Route>
+      <Route path="/appointments">
+        {() => <ProtectedRoute component={AppointmentsPage} allowedRoles={['admin','doctor','receptionist']} />}
+      </Route>
+      <Route path="/clinic">
+        {() => <ProtectedRoute component={ClinicPage} allowedRoles={['admin','doctor','nurse']} />}
+      </Route>
+      <Route path="/queue">
+        {() => <ProtectedRoute component={QueuePage} allowedRoles={['admin','doctor','nurse','lab_tech','receptionist','pharmacist']} />}
+      </Route>
+      <Route path="/lab">
+        {() => <ProtectedRoute component={LabPage} allowedRoles={['admin','doctor','lab_tech']} />}
+      </Route>
+      <Route path="/pharmacy">
+        {() => <ProtectedRoute component={PharmacyPage} allowedRoles={['admin','pharmacist','doctor']} />}
+      </Route>
+      <Route path="/inventory">
+        {() => <ProtectedRoute component={InventoryPage} allowedRoles={['admin','pharmacist']} />}
+      </Route>
+      <Route path="/finance">
+        {() => <ProtectedRoute component={FinancePage} allowedRoles={['admin']} />}
+      </Route>
+      <Route path="/hr">
+        {() => <ProtectedRoute component={HRPage} allowedRoles={['admin']} />}
+      </Route>
+      <Route path="/users">
+        {() => <ProtectedRoute component={UsersPage} allowedRoles={['admin']} />}
+      </Route>
+      <Route path="/reports">
+        {() => <ProtectedRoute component={ReportsPage} allowedRoles={['admin','doctor']} />}
+      </Route>
+      <Route path="/settings">
+        {() => <ProtectedRoute component={SettingsPage} allowedRoles={['admin','doctor','nurse','lab_tech','receptionist','pharmacist']} />}
+      </Route>
       <Route component={NotFound} />
     </Switch>
   );
