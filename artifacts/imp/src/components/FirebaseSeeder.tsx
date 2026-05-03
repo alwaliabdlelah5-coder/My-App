@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { collection, getDocs, writeBatch, doc, serverTimestamp } from 'firebase/firestore';
-import { getDb } from '@/lib/firebase';
+import { getDb, authReady } from '@/lib/firebase';
 
 export function FirebaseSeeder() {
   const [seeding, setSeeding] = useState(false);
@@ -10,6 +10,7 @@ export function FirebaseSeeder() {
   useEffect(() => {
     async function checkAndSeed() {
       if (!db) return;
+      await authReady;
       try {
         const patientsSnap = await getDocs(collection(db, 'patients'));
         if (patientsSnap.empty) {

@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import Sidebar from '@/components/Sidebar';
-import { Stethoscope, Search, Heart, Thermometer, Activity, Pill, FlaskConical, Save, Plus, Trash2, X, CheckCircle } from 'lucide-react';
+import { Stethoscope, Search, Heart, Thermometer, Activity, Pill, FlaskConical, Save, Plus, Trash2, X, CheckCircle, ListOrdered, CheckCircle2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/components/Toast';
+import { useQueue } from '@/hooks/use-queue';
 
 const sections = [
   { id: 'vitals', name: 'العلامات الحيوية', icon: Activity },
@@ -32,6 +33,7 @@ const DRUGS_DB = [
 
 const TESTS_DB = ['CBC (صورة دم كاملة)', 'وظائف كبد', 'وظائف كلى', 'هرمونات الغدة', 'سكر صيام', 'تحليل بول', 'صدر X-Ray', 'أشعة مقطعية'];
 const COMPLAINT_TAGS = ['صداع', 'حمى', 'ألم مفاصل', 'غثيان', 'تعب عام', 'ضيق تنفس', 'ألم بطن', 'دوخة', 'سعال'];
+const doctors = ['د. سارة خالد', 'د. علي يحيى', 'د. أحمد المحمدي'];
 
 interface PrescribedDrug { id: string; name: string; dose: string; duration: string; frequency: string; }
 interface LabOrder { id: string; title: string; type: 'lab' | 'radiology'; status: 'pending' | 'completed'; date: string; }
@@ -49,8 +51,28 @@ function VitalsInput({ label, icon: Icon, unit, placeholder, value, onChange }: 
   );
 }
 
+function LabOrderCard({ title, status, type, date }: { title: string; status: 'pending' | 'completed'; type: 'lab' | 'radiology'; date: string }) {
+  return (
+    <div className="p-6 bg-gray-50 rounded-[2rem] border-2 border-transparent hover:border-primary/20 transition-all flex items-center justify-between shadow-sm">
+      <div className="flex items-center gap-4">
+        <div className={cn("w-12 h-12 rounded-xl flex items-center justify-center border shadow-sm",
+          type === 'lab' ? "bg-indigo-50 text-indigo-500 border-indigo-100" : "bg-purple-50 text-purple-500 border-purple-100"
+        )}>{type === 'lab' ? <FlaskConical className="w-6 h-6" /> : <Activity className="w-6 h-6" />}</div>
+        <div>
+          <h4 className="font-black text-gray-900 leading-none">{title}</h4>
+          <p className="text-[10px] font-bold text-gray-400 mt-1 italic uppercase">{date} • {type.toUpperCase()}</p>
+        </div>
+      </div>
+      <div className={cn("px-3 py-1 rounded-full text-[9px] font-black uppercase italic tracking-widest",
+        status === 'pending' ? "bg-amber-100 text-amber-700" : "bg-emerald-100 text-emerald-700"
+      )}>{status === 'pending' ? 'جاري الفحص' : 'جاهز'}</div>
+    </div>
+  );
+}
+
 export default function ClinicPage() {
   const { toast } = useToast();
+  const { addToQueue } = useQueue();
   const [activeSection, setActiveSection] = useState('vitals');
   const [selectedPatient, setSelectedPatient] = useState<any>(null);
   const [searchPatient, setSearchPatient] = useState('');
@@ -72,6 +94,9 @@ export default function ClinicPage() {
   const [drugDuration, setDrugDuration] = useState('7 أيام');
   const [selectedTest, setSelectedTest] = useState('');
   const [savedFlag, setSavedFlag] = useState(false);
+  const [selectedDoctor, setSelectedDoctor] = useState(doctors[0]);
+  const [addedToQueue, setAddedToQueue] = useState(false);
+  const [addingToQueue, setAddingToQueue] = useState(false);
 
   const filteredPatients = PATIENTS.filter(p => !searchPatient || p.name.includes(searchPatient) || p.fileNumber.includes(searchPatient));
   const filteredDrugs = DRUGS_DB.filter(d => !drugSearch || d.name.toLowerCase().includes(drugSearch.toLowerCase()) || d.scientificName.toLowerCase().includes(drugSearch.toLowerCase()));
@@ -117,21 +142,70 @@ export default function ClinicPage() {
     toast(`تم إصدار السجل الطبي وإرساله للأرشفة ✓`);
   };
 
+  const handleAddToQueue = async () => {
+    if (!selectedPatient) { toast('الرجاء اختيار مريض أولاً', 'error'); return; }
+    setAddingToQueue(true);
+    try {
+      await addToQueue({
+        patientId: String(selectedPatient.id),
+        patientName: selectedPatient.name,
+        doctorName: selectedDoctor,
+        type: 'كشف',
+        priority: 1,
+      });
+      setAddedToQueue(true);
+      setTimeout(() => setAddedToQueue(false), 3000);
+      toast(`تمت إضافة ${selectedPatient.name} إلى الطابور ✓`);
+    } catch {
+      toast('حدث خطأ أثناء إضافة المريض إلى الطابور', 'error');
+    } finally {
+      setAddingToQueue(false);
+    }
+  };
+
   return (
     <Sidebar>
       <div className="space-y-8 h-full flex flex-col">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-4">
           <div>
             <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3"><Stethoscope className="w-8 h-8 text-primary" />العيادة الذكية</h1>
             <p className="text-gray-500 mt-1 uppercase text-xs font-black tracking-widest text-primary/60">Electronic Health Records</p>
           </div>
-          <button onClick={saveRecord}
-            className={cn("text-white px-8 py-3 rounded-2xl font-bold flex items-center gap-2 transition-all shadow-lg",
-              savedFlag ? "bg-emerald-500 shadow-emerald-500/25" : "bg-emerald-500 hover:bg-emerald-600 shadow-emerald-500/25"
-            )}>
-            {savedFlag ? <CheckCircle className="w-5 h-5" /> : <Save className="w-5 h-5" />}
-            {savedFlag ? 'تم الحفظ!' : 'حفظ السجل'}
-          </button>
+          <div className="flex items-center gap-3 flex-wrap">
+            <AnimatePresence>
+              {addedToQueue && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.9 }}
+                  className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 text-emerald-700 px-4 py-2 rounded-2xl text-xs font-black"
+                >
+                  <CheckCircle2 className="w-4 h-4" />
+                  تمت الإضافة إلى الطابور
+                </motion.div>
+              )}
+            </AnimatePresence>
+            <button
+              onClick={handleAddToQueue}
+              disabled={addingToQueue || !selectedPatient}
+              className={cn(
+                "flex items-center gap-2 px-6 py-3 rounded-2xl font-bold text-sm transition-all shadow-lg",
+                selectedPatient
+                  ? "bg-amber-500 text-white hover:bg-amber-600 shadow-amber-500/25"
+                  : "bg-gray-100 text-gray-400 cursor-not-allowed shadow-none"
+              )}
+            >
+              <ListOrdered className="w-5 h-5" />
+              {addingToQueue ? 'جاري الإضافة...' : 'إضافة للطابور'}
+            </button>
+            <button onClick={saveRecord}
+              className={cn("text-white px-8 py-3 rounded-2xl font-bold flex items-center gap-2 transition-all shadow-lg",
+                savedFlag ? "bg-emerald-500 shadow-emerald-500/25" : "bg-emerald-500 hover:bg-emerald-600 shadow-emerald-500/25"
+              )}>
+              {savedFlag ? <CheckCircle className="w-5 h-5" /> : <Save className="w-5 h-5" />}
+              {savedFlag ? 'تم الحفظ!' : 'حفظ السجل'}
+            </button>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-8 flex-1 items-start">
@@ -144,10 +218,12 @@ export default function ClinicPage() {
               </div>
               {!selectedPatient ? (
                 <div className="space-y-2">
-                  <p className="text-xs font-bold text-gray-400 px-2 uppercase tracking-wider">مرضى مجدولون</p>
+                  <p className="text-xs font-bold text-gray-400 px-2 uppercase tracking-wider">مرضى اليوم المجدولون</p>
                   {filteredPatients.map(p => (
-                    <button key={p.id} onClick={() => setSelectedPatient(p)}
-                      className="w-full flex items-center gap-4 p-3.5 hover:bg-gray-50 rounded-2xl transition-all text-right border border-transparent hover:border-primary/10">
+                    <button key={p.id} onClick={() => { setSelectedPatient(p); setAddedToQueue(false); }}
+                      className={cn("w-full flex items-center gap-4 p-3.5 hover:bg-gray-50 rounded-2xl transition-all text-right border border-transparent hover:border-primary/10",
+                        selectedPatient?.id === p.id && "bg-primary/5 border-primary/20 shadow-sm"
+                      )}>
                       <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-bold">{p.name[0]}</div>
                       <div><p className="font-bold text-gray-900 text-sm">{p.name}</p><p className="text-xs text-gray-500">{p.fileNumber}</p></div>
                     </button>
@@ -164,7 +240,6 @@ export default function ClinicPage() {
                       <div className="flex gap-2 mt-1 text-[10px] text-gray-500"><span>{selectedPatient.age} سنة</span><span>•</span><span>{selectedPatient.gender}</span></div>
                     </div>
                   </div>
-                  {/* show saved record if exists */}
                   {(() => {
                     const saved = localStorage.getItem(`clinic_record_${selectedPatient.id}`);
                     if (!saved) return null;
@@ -175,7 +250,17 @@ export default function ClinicPage() {
                       </div>
                     );
                   })()}
-                  <button onClick={() => { setSelectedPatient(null); setSearchPatient(''); }} className="w-full py-2 text-xs font-bold text-rose-500 hover:underline border-t">تغيير المريض</button>
+                  <div className="space-y-2">
+                    <p className="text-xs font-bold text-gray-500 px-1">الطبيب المسؤول</p>
+                    <select
+                      value={selectedDoctor}
+                      onChange={(e) => setSelectedDoctor(e.target.value)}
+                      className="w-full bg-gray-50 border-none rounded-2xl py-3 px-4 text-sm font-bold text-gray-900 focus:ring-2 focus:ring-primary/20 transition-all"
+                    >
+                      {doctors.map(d => <option key={d} value={d}>{d}</option>)}
+                    </select>
+                  </div>
+                  <button onClick={() => { setSelectedPatient(null); setSearchPatient(''); setAddedToQueue(false); }} className="w-full py-2 text-xs font-bold text-rose-500 hover:underline border-t">تغيير المريض</button>
                 </div>
               )}
             </div>
@@ -262,15 +347,12 @@ export default function ClinicPage() {
                   )}
                   <div className="space-y-3">
                     {prescription.map(drug => (
-                      <div key={drug.id} className="p-5 bg-gray-50 rounded-[2rem] flex items-center justify-between shadow-sm hover:shadow-md transition-all">
-                        <div className="flex items-center gap-5">
-                          <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-primary shadow-md border border-gray-100"><Pill className="w-6 h-6" /></div>
-                          <div>
-                            <p className="font-black text-gray-900 tracking-tighter leading-none">{drug.name.split(' (')[0]}</p>
-                            <p className="text-[10px] font-bold text-gray-400 mt-1 italic uppercase">{drug.dose} • {drug.frequency} • {drug.duration}</p>
-                          </div>
+                      <div key={drug.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl">
+                        <div>
+                          <p className="font-bold text-gray-900">{drug.name}</p>
+                          <p className="text-xs text-gray-500">{drug.dose} • {drug.frequency} • {drug.duration}</p>
                         </div>
-                        <button onClick={() => removeDrug(drug.id)} className="p-2.5 bg-white text-rose-400 hover:bg-rose-500 hover:text-white rounded-xl transition-all shadow-sm"><Trash2 className="w-4 h-4" /></button>
+                        <button onClick={() => removeDrug(drug.id)} className="p-2 text-rose-400 hover:bg-rose-50 rounded-xl transition-all"><Trash2 className="w-4 h-4" /></button>
                       </div>
                     ))}
                   </div>
@@ -279,45 +361,22 @@ export default function ClinicPage() {
               {activeSection === 'labs' && (
                 <div className="space-y-6">
                   <div className="flex items-center justify-between">
-                    <div><h3 className="font-black text-xl text-gray-900 italic tracking-tighter">Lab & Radiology Orders</h3><p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">طلبات التحاليل والأشعة</p></div>
-                    <button onClick={() => setShowTestPicker(true)} className="bg-gray-900 text-white px-5 py-2.5 rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-primary transition-all shadow-lg">
-                      طلب فحص جديد
+                    <div><h3 className="font-black text-xl text-gray-900 italic tracking-tighter">Lab Orders</h3><p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">طلبات الفحوصات</p></div>
+                    <button onClick={() => setShowTestPicker(true)} className="flex items-center gap-2 bg-indigo-600 text-white px-5 py-2.5 rounded-2xl font-black text-sm shadow-lg shadow-indigo-500/25 hover:scale-105 transition-all">
+                      <Plus className="w-4 h-4" />طلب فحص
                     </button>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {labOrders.map(order => (
-                      <div key={order.id} className="p-5 bg-gray-50 rounded-[2rem] border-2 border-transparent hover:border-primary/20 transition-all flex items-center justify-between shadow-sm">
-                        <div className="flex items-center gap-4">
-                          <div className={cn("w-11 h-11 rounded-xl flex items-center justify-center border shadow-sm",
-                            order.type === 'lab' ? "bg-indigo-50 text-indigo-500 border-indigo-100" : "bg-purple-50 text-purple-500 border-purple-100"
-                          )}>{order.type === 'lab' ? <FlaskConical className="w-5 h-5" /> : <Activity className="w-5 h-5" />}</div>
-                          <div>
-                            <h4 className="font-black text-gray-900 leading-none text-sm">{order.title}</h4>
-                            <p className="text-[10px] font-bold text-gray-400 mt-1 uppercase">{order.date} • {order.type === 'lab' ? 'تحليل' : 'أشعة'}</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className={cn("px-3 py-1 rounded-full text-[9px] font-black uppercase",
-                            order.status === 'pending' ? "bg-amber-100 text-amber-700" : "bg-emerald-100 text-emerald-700"
-                          )}>{order.status === 'pending' ? 'جاري' : 'جاهز'}</span>
-                          <button onClick={() => { setLabOrders(prev => prev.filter(o => o.id !== order.id)); toast('تم إلغاء الطلب', 'info'); }} className="p-1.5 text-gray-300 hover:text-rose-500 transition-all"><X className="w-4 h-4" /></button>
-                        </div>
-                      </div>
-                    ))}
+                  <div className="space-y-3">
+                    {labOrders.map(order => <LabOrderCard key={order.id} {...order} />)}
                   </div>
                 </div>
               )}
             </div>
 
-            <div className="p-7 border-t bg-gray-50/50 flex justify-between items-center">
-              <div className="flex items-center gap-3">
-                <div className={cn("w-3 h-3 rounded-full", savedFlag ? "bg-emerald-500" : "bg-gray-300")} />
-                <span className="text-xs font-black text-gray-400 uppercase tracking-widest italic">{savedFlag ? 'Saved' : 'Unsaved'}</span>
-              </div>
-              <div className="flex items-center gap-4">
-                <button onClick={saveRecord} className="text-gray-400 font-black text-xs uppercase tracking-widest hover:text-gray-900">حفظ كمسودة</button>
-                <button onClick={issueRecord} className="bg-primary text-white px-10 py-3.5 rounded-2xl font-black italic tracking-tighter text-base shadow-xl shadow-primary/30 hover:scale-105 active:scale-95 transition-all">إصدار السجل الطبي</button>
-              </div>
+            <div className="border-t p-6 flex justify-end gap-4 bg-gray-50/30">
+              <button onClick={issueRecord} className="flex items-center gap-2 bg-primary text-white px-8 py-3 rounded-2xl font-bold shadow-lg shadow-primary/25 hover:scale-105 transition-all">
+                إصدار السجل الطبي
+              </button>
             </div>
           </div>
         </div>
@@ -325,38 +384,43 @@ export default function ClinicPage() {
 
       <AnimatePresence>
         {showDrugPicker && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowDrugPicker(false)} className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
-            <motion.div initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 20 }} className="relative w-full max-w-lg bg-white rounded-3xl shadow-2xl overflow-hidden">
-              <div className="p-6 border-b flex items-center justify-between">
-                <h2 className="text-xl font-black text-gray-900">اختيار دواء</h2>
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowDrugPicker(false)} className="absolute inset-0 bg-black/30 backdrop-blur-sm" />
+            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="relative w-full max-w-lg bg-white rounded-3xl shadow-2xl overflow-hidden">
+              <div className="p-6 border-b flex justify-between items-center">
+                <h3 className="font-black text-lg">اختيار دواء</h3>
                 <button onClick={() => setShowDrugPicker(false)} className="p-2 hover:bg-gray-100 rounded-xl"><X className="w-5 h-5 text-gray-400" /></button>
               </div>
               <div className="p-6 space-y-4">
-                <div className="relative">
-                  <Search className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input value={drugSearch} onChange={e => setDrugSearch(e.target.value)} placeholder="بحث في الأدوية..." className="w-full bg-gray-50 rounded-2xl py-3 pr-11 pl-4 text-sm border-none outline-none" />
-                </div>
+                <input type="text" placeholder="بحث عن دواء..." value={drugSearch} onChange={e => setDrugSearch(e.target.value)}
+                  className="w-full bg-gray-50 rounded-2xl p-3 text-sm outline-none focus:ring-2 focus:ring-primary/20" />
                 <div className="space-y-2 max-h-48 overflow-y-auto">
                   {filteredDrugs.map(d => (
-                    <button key={d.id} onClick={() => setSelectedDrugId(d.id)}
-                      className={cn("w-full text-right p-3.5 rounded-2xl flex items-center gap-3 transition-all border-2",
-                        selectedDrugId === d.id ? "border-primary bg-primary/5" : "border-transparent bg-gray-50 hover:border-gray-200"
-                      )}>
-                      <Pill className="w-5 h-5 text-primary shrink-0" />
-                      <div><p className="font-bold text-gray-900 text-sm">{d.name.split(' (')[0]}</p><p className="text-[10px] text-gray-400">{d.scientificName}</p></div>
+                    <button key={d.id} onClick={() => setSelectedDrugId(d.id)} className={cn("w-full text-right p-3 rounded-2xl transition-all flex items-center justify-between",
+                      selectedDrugId === d.id ? "bg-primary/10 border-2 border-primary/20" : "hover:bg-gray-50 border-2 border-transparent"
+                    )}>
+                      <div><p className="font-bold text-sm">{d.name}</p><p className="text-xs text-gray-400 italic">{d.scientificName}</p></div>
+                      <span className="text-xs font-bold text-gray-400">{d.stock} وحدة</span>
                     </button>
                   ))}
                 </div>
-                <div className="grid grid-cols-3 gap-3 pt-2 border-t">
-                  <div className="space-y-1"><label className="text-xs font-bold text-gray-600">الجرعة</label>
-                    <input value={drugDose} onChange={e => setDrugDose(e.target.value)} placeholder="مثال: 625mg" className="w-full bg-gray-50 rounded-xl p-2.5 text-sm border-none outline-none" /></div>
-                  <div className="space-y-1"><label className="text-xs font-bold text-gray-600">التكرار</label>
-                    <select value={drugFreq} onChange={e => setDrugFreq(e.target.value)} className="w-full bg-gray-50 rounded-xl p-2.5 text-sm border-none outline-none">
-                      <option>مرة يومياً</option><option>مرتان يومياً</option><option>3 مرات يومياً</option><option>عند الحاجة</option></select></div>
-                  <div className="space-y-1"><label className="text-xs font-bold text-gray-600">المدة</label>
-                    <select value={drugDuration} onChange={e => setDrugDuration(e.target.value)} className="w-full bg-gray-50 rounded-xl p-2.5 text-sm border-none outline-none">
-                      <option>3 أيام</option><option>5 أيام</option><option>7 أيام</option><option>10 أيام</option><option>14 يوم</option><option>شهر</option></select></div>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="space-y-1 col-span-3">
+                    <label className="text-xs font-bold text-gray-500">الجرعة</label>
+                    <input value={drugDose} onChange={e => setDrugDose(e.target.value)} placeholder="مثال: 500mg" className="w-full bg-gray-50 rounded-xl p-2.5 text-sm outline-none" />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-gray-500">التكرار</label>
+                    <select value={drugFreq} onChange={e => setDrugFreq(e.target.value)} className="w-full bg-gray-50 rounded-xl p-2.5 text-sm outline-none">
+                      {['مرة يومياً', 'مرتان يومياً', '3 مرات يومياً', 'عند الحاجة'].map(f => <option key={f}>{f}</option>)}
+                    </select>
+                  </div>
+                  <div className="space-y-1 col-span-2">
+                    <label className="text-xs font-bold text-gray-500">المدة</label>
+                    <select value={drugDuration} onChange={e => setDrugDuration(e.target.value)} className="w-full bg-gray-50 rounded-xl p-2.5 text-sm outline-none">
+                      {['3 أيام', '5 أيام', '7 أيام', '10 أيام', '14 يوم', 'شهر'].map(d => <option key={d}>{d}</option>)}
+                    </select>
+                  </div>
                 </div>
               </div>
               <div className="p-6 bg-gray-50 flex justify-end gap-3">
@@ -366,26 +430,27 @@ export default function ClinicPage() {
             </motion.div>
           </div>
         )}
+      </AnimatePresence>
 
+      <AnimatePresence>
         {showTestPicker && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowTestPicker(false)} className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
-            <motion.div initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 20 }} className="relative w-full max-w-sm bg-white rounded-3xl shadow-2xl overflow-hidden">
-              <div className="p-6 border-b flex items-center justify-between">
-                <h2 className="text-xl font-black text-gray-900">طلب فحص جديد</h2>
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowTestPicker(false)} className="absolute inset-0 bg-black/30 backdrop-blur-sm" />
+            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden">
+              <div className="p-6 border-b flex justify-between items-center">
+                <h3 className="font-black text-lg">طلب فحص</h3>
                 <button onClick={() => setShowTestPicker(false)} className="p-2 hover:bg-gray-100 rounded-xl"><X className="w-5 h-5 text-gray-400" /></button>
               </div>
               <div className="p-6 space-y-3">
-                {TESTS_DB.map(t => (
-                  <button key={t} onClick={() => setSelectedTest(t)}
-                    className={cn("w-full text-right p-3.5 rounded-2xl font-bold text-sm transition-all border-2",
-                      selectedTest === t ? "border-primary bg-primary/5 text-primary" : "border-transparent bg-gray-50 text-gray-700 hover:border-gray-200"
-                    )}>{t}</button>
+                {TESTS_DB.map(test => (
+                  <button key={test} onClick={() => setSelectedTest(test)} className={cn("w-full text-right px-4 py-3 rounded-2xl font-bold text-sm transition-all border-2",
+                    selectedTest === test ? "bg-indigo-50 border-indigo-200 text-indigo-700" : "border-transparent hover:bg-gray-50"
+                  )}>{test}</button>
                 ))}
               </div>
               <div className="p-6 bg-gray-50 flex justify-end gap-3">
                 <button onClick={() => setShowTestPicker(false)} className="px-5 py-2.5 rounded-2xl font-bold text-gray-500 hover:bg-gray-100">إلغاء</button>
-                <button onClick={addLabOrder} className="bg-gray-900 text-white px-7 py-2.5 rounded-2xl font-bold hover:bg-primary transition-all">إرسال الطلب</button>
+                <button onClick={addLabOrder} className="bg-indigo-600 text-white px-7 py-2.5 rounded-2xl font-bold shadow-lg">إرسال طلب</button>
               </div>
             </motion.div>
           </div>
