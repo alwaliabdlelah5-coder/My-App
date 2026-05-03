@@ -1,261 +1,329 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Sidebar from '@/components/Sidebar';
-import { Settings, Database, Shield, Bell, Globe, Zap, Save, RefreshCw, CheckCircle, AlertCircle, Toggle } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { Settings, Database, Shield, Bell, Globe, Zap, Save, RefreshCw, CheckCircle, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
+import { useToast } from '@/components/Toast';
 
-const configCategories = [
-  { id: 'global', name: 'الإعدادات العامة', icon: Globe, desc: 'اسم المنشأة، اللغة، التوقيت، العملة' },
-  { id: 'database', name: 'قاعدة البيانات', icon: Database, desc: 'إعدادات الاتصال والنسخ الاحتياطي' },
-  { id: 'security', name: 'الأمان والصلاحيات', icon: Shield, desc: 'كلمات المرور، 2FA، سياسة الجلسات' },
-  { id: 'notifications', name: 'الإشعارات والتنبيهات', icon: Bell, desc: 'إعدادات SMS وإشعارات المواعيد' },
-  { id: 'automation', name: 'الأتمتة والتكامل', icon: Zap, desc: 'WebSocket، الأتمتة، API المشفرة' },
+const LS_KEY = 'clinic_settings_v2';
+
+const DEFAULTS = {
+  clinicName: 'المنظومة الطبية المتكامل',
+  clinicAddress: 'صنعاء - شارع الستين، مجمع الرفاع',
+  clinicPhone: '+967 1 234567',
+  clinicEmail: 'info@clinic-imp.com',
+  timezone: 'Asia/Aden',
+  language: 'ar',
+  dateFormat: 'dd/mm/yyyy',
+  currency: 'YER',
+  theme: 'light',
+  fontSize: 'medium',
+  appointmentDuration: '30',
+  workingHoursStart: '08:00',
+  workingHoursEnd: '17:00',
+  workingDays: ['saturday', 'sunday', 'monday', 'tuesday', 'wednesday', 'thursday'] as string[],
+  twoFactorAuth: false,
+  sessionTimeout: '60',
+  loginAttempts: '5',
+  passwordMinLength: '8',
+  emailNotifications: true,
+  appointmentReminder: true,
+  labResultsNotification: true,
+  stockAlertNotification: true,
+  reminderHoursBefore: '24',
+  autoBackup: true,
+  backupFrequency: 'daily',
+  backupRetention: '30',
+};
+
+type SettingsState = typeof DEFAULTS;
+
+const sections = [
+  { id: 'clinic', icon: Settings, label: 'بيانات المنشأة', desc: 'المعلومات الأساسية للعيادة' },
+  { id: 'system', icon: Globe, label: 'إعدادات النظام', desc: 'اللغة، التاريخ، العملة' },
+  { id: 'appointments', icon: Zap, label: 'إعدادات المواعيد', desc: 'مدة الكشف وأوقات العمل' },
+  { id: 'security', icon: Shield, label: 'الأمان والحماية', desc: 'المصادقة وسياسات الوصول' },
+  { id: 'notifications', icon: Bell, label: 'الإشعارات', desc: 'التنبيهات والتذكيرات' },
+  { id: 'backup', icon: Database, label: 'النسخ الاحتياطي', desc: 'إعدادات الحفظ والاسترداد' },
 ];
 
-interface ToggleSettingProps { label: string; desc: string; value: boolean; onChange: (v: boolean) => void; }
-function ToggleSetting({ label, desc, value, onChange }: ToggleSettingProps) {
+const DAYS_AR: Record<string, string> = {
+  saturday: 'السبت', sunday: 'الأحد', monday: 'الاثنين',
+  tuesday: 'الثلاثاء', wednesday: 'الأربعاء', thursday: 'الخميس', friday: 'الجمعة',
+};
+
+function Toggle({ checked, onChange }: { checked: boolean; onChange: () => void }) {
   return (
-    <div className="flex items-center justify-between p-5 bg-gray-50/50 rounded-2xl hover:bg-gray-50 transition-all border border-transparent hover:border-gray-100 group">
-      <div>
-        <p className="font-black text-gray-900 text-sm tracking-tight">{label}</p>
-        <p className="text-[11px] text-gray-400 font-medium mt-0.5 max-w-xs">{desc}</p>
+    <button onClick={onChange} className={cn("w-12 h-6 rounded-full transition-all relative flex-shrink-0", checked ? "bg-primary" : "bg-gray-200")}>
+      <div className={cn("w-5 h-5 bg-white rounded-full shadow-md absolute top-0.5 transition-all", checked ? "left-6" : "left-0.5")} />
+    </button>
+  );
+}
+
+function SettingRow({ label, desc, children }: { label: string; desc?: string; children: React.ReactNode }) {
+  return (
+    <div className="flex items-center justify-between py-5 border-b last:border-0">
+      <div className="flex-1 ml-6">
+        <p className="font-bold text-gray-900 text-sm">{label}</p>
+        {desc && <p className="text-xs text-gray-400 font-medium mt-0.5">{desc}</p>}
       </div>
-      <button onClick={() => onChange(!value)}
-        className={cn("relative w-12 h-6 rounded-full transition-all duration-300 shadow-inner focus:outline-none",
-          value ? "bg-primary shadow-md shadow-primary/25" : "bg-gray-200"
-        )}
-      >
-        <span className={cn("absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow-md transition-all duration-300",
-          value ? "translate-x-6" : "translate-x-0"
-        )} />
-      </button>
-    </div>
-  );
-}
-
-interface FormCardProps { title: string; children: React.ReactNode; }
-function FormCard({ title, children }: FormCardProps) {
-  return (
-    <div className="space-y-4">
-      <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] italic px-1">{title}</h4>
-      <div className="space-y-3">{children}</div>
-    </div>
-  );
-}
-
-interface TextFieldProps { label: string; value: string; onChange: (v: string) => void; type?: string; hint?: string; }
-function TextField({ label, value, onChange, type = 'text', hint }: TextFieldProps) {
-  return (
-    <div className="space-y-2">
-      <label className="text-sm font-bold text-gray-700">{label}</label>
-      <input type={type} value={value} onChange={e => onChange(e.target.value)}
-        className="w-full bg-gray-50 border-none rounded-2xl p-4 text-sm font-medium focus:ring-2 focus:ring-primary/20 transition-all" />
-      {hint && <p className="text-[10px] text-gray-400 font-medium italic px-1">{hint}</p>}
+      <div className="flex-shrink-0">{children}</div>
     </div>
   );
 }
 
 export default function SettingsPage() {
-  const [activeCategory, setActiveCategory] = useState('global');
+  const { toast } = useToast();
+  const [settings, setSettings] = useState<SettingsState>(DEFAULTS);
+  const [activeSection, setActiveSection] = useState('clinic');
   const [saved, setSaved] = useState(false);
+  const [hasChanges, setHasChanges] = useState(false);
 
-  const [globalSettings, setGlobalSettings] = useState({
-    hospitalName: 'مركز الرشيد الطبي', hospitalNameEn: 'Al-Rashid Medical Center',
-    city: 'صنعاء', country: 'اليمن', currency: 'YER', timezone: 'Asia/Aden',
-    language: 'ar', allowMultipleLanguages: true,
-  });
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(LS_KEY);
+      if (stored) { setSettings({ ...DEFAULTS, ...JSON.parse(stored) }); }
+    } catch {}
+  }, []);
 
-  const [dbSettings, setDbSettings] = useState({
-    firestoreDb: 'ai-studio-e84e21e0-4c5c-4c04-a418-f27c5532af28',
-    backupEnabled: true, backupInterval: '24h', backupRetentionDays: '30',
-    cacheEnabled: true, cacheExpiry: '60',
-  });
-
-  const [securitySettings, setSecuritySettings] = useState({
-    twoFactorEnabled: false, sessionTimeout: '60', minPasswordLength: '8',
-    forcePasswordChange: true, loginAttempts: '5', ipWhitelist: '',
-  });
-
-  const [notifSettings, setNotifSettings] = useState({
-    smsEnabled: true, emailNotif: true, appointmentReminder: true,
-    reminderHours: '24', lowStockAlert: true, dailyReportEmail: false,
-  });
-
-  const [autoSettings, setAutoSettings] = useState({
-    wsEnabled: true, dynamicConfig: true, autoQueueUpdate: true,
-    apiRateLimit: '100', webhookUrl: '', maintenanceMode: false,
-  });
-
-  const handleSave = () => {
-    setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
+  const update = (key: keyof SettingsState, value: any) => {
+    setSettings(prev => ({ ...prev, [key]: value }));
+    setHasChanges(true);
   };
 
-  const renderContent = () => {
-    switch (activeCategory) {
-      case 'global':
-        return (
-          <div className="space-y-8">
-            <FormCard title="معلومات المنشأة">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <TextField label="اسم المنشأة (عربي)" value={globalSettings.hospitalName} onChange={v => setGlobalSettings(p => ({ ...p, hospitalName: v }))} />
-                <TextField label="اسم المنشأة (إنجليزي)" value={globalSettings.hospitalNameEn} onChange={v => setGlobalSettings(p => ({ ...p, hospitalNameEn: v }))} />
-                <TextField label="المدينة" value={globalSettings.city} onChange={v => setGlobalSettings(p => ({ ...p, city: v }))} />
-                <TextField label="الدولة" value={globalSettings.country} onChange={v => setGlobalSettings(p => ({ ...p, country: v }))} />
-              </div>
-            </FormCard>
-            <FormCard title="الإقليمية والتوطين">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="space-y-2"><label className="text-sm font-bold text-gray-700">العملة</label>
-                  <select value={globalSettings.currency} onChange={e => setGlobalSettings(p => ({ ...p, currency: e.target.value }))} className="w-full bg-gray-50 border-none rounded-2xl p-4 text-sm font-medium focus:ring-2 focus:ring-primary/20">
-                    <option value="YER">YER - ريال يمني</option><option value="USD">USD - دولار</option><option value="SAR">SAR - ريال سعودي</option>
-                  </select>
-                </div>
-                <div className="space-y-2"><label className="text-sm font-bold text-gray-700">المنطقة الزمنية</label>
-                  <select value={globalSettings.timezone} onChange={e => setGlobalSettings(p => ({ ...p, timezone: e.target.value }))} className="w-full bg-gray-50 border-none rounded-2xl p-4 text-sm font-medium focus:ring-2 focus:ring-primary/20">
-                    <option value="Asia/Aden">Asia/Aden (GMT+3)</option><option value="UTC">UTC</option>
-                  </select>
-                </div>
-                <div className="space-y-2"><label className="text-sm font-bold text-gray-700">اللغة الافتراضية</label>
-                  <select value={globalSettings.language} onChange={e => setGlobalSettings(p => ({ ...p, language: e.target.value }))} className="w-full bg-gray-50 border-none rounded-2xl p-4 text-sm font-medium focus:ring-2 focus:ring-primary/20">
-                    <option value="ar">العربية</option><option value="en">English</option>
-                  </select>
-                </div>
-              </div>
-              <ToggleSetting label="دعم تعدد اللغات" desc="السماح بتغيير لغة الواجهة من قبل المستخدمين" value={globalSettings.allowMultipleLanguages} onChange={v => setGlobalSettings(p => ({ ...p, allowMultipleLanguages: v }))} />
-            </FormCard>
-          </div>
-        );
-      case 'database':
-        return (
-          <div className="space-y-8">
-            <FormCard title="Firebase Firestore">
-              <div className="p-5 bg-blue-50/50 border border-blue-100 rounded-2xl flex items-center gap-3">
-                <CheckCircle className="w-5 h-5 text-blue-500" />
-                <div><p className="font-black text-blue-900 text-sm">متصل بـ Firebase</p><p className="text-[10px] text-blue-400 font-bold italic">gen-lang-client-0734811332</p></div>
-              </div>
-              <TextField label="معرف قاعدة Firestore" value={dbSettings.firestoreDb} onChange={v => setDbSettings(p => ({ ...p, firestoreDb: v }))} hint="يُضبط في ملف الإعدادات الأساسي" />
-            </FormCard>
-            <FormCard title="النسخ الاحتياطي">
-              <ToggleSetting label="تفعيل النسخ الاحتياطي التلقائي" desc="نسخ احتياطي دوري لقاعدة البيانات" value={dbSettings.backupEnabled} onChange={v => setDbSettings(p => ({ ...p, backupEnabled: v }))} />
-              <div className="grid grid-cols-2 gap-4">
-                <TextField label="فترة النسخ الاحتياطي" value={dbSettings.backupInterval} onChange={v => setDbSettings(p => ({ ...p, backupInterval: v }))} hint="مثال: 24h, 12h, 48h" />
-                <TextField label="فترة الاحتفاظ (أيام)" value={dbSettings.backupRetentionDays} onChange={v => setDbSettings(p => ({ ...p, backupRetentionDays: v }))} type="number" />
-              </div>
-            </FormCard>
-            <FormCard title="التخزين المؤقت (Cache)">
-              <ToggleSetting label="تفعيل التخزين المؤقت" desc="تحسين أداء الاستعلامات" value={dbSettings.cacheEnabled} onChange={v => setDbSettings(p => ({ ...p, cacheEnabled: v }))} />
-              <TextField label="مدة الصلاحية (ثانية)" value={dbSettings.cacheExpiry} onChange={v => setDbSettings(p => ({ ...p, cacheExpiry: v }))} type="number" />
-            </FormCard>
-          </div>
-        );
-      case 'security':
-        return (
-          <div className="space-y-8">
-            <FormCard title="المصادقة الثنائية">
-              <ToggleSetting label="تفعيل 2FA لجميع المستخدمين" desc="مصادقة ثنائية لكل تسجيل دخول" value={securitySettings.twoFactorEnabled} onChange={v => setSecuritySettings(p => ({ ...p, twoFactorEnabled: v }))} />
-            </FormCard>
-            <FormCard title="سياسة كلمة المرور">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <TextField label="الحد الأدنى لطول كلمة المرور" value={securitySettings.minPasswordLength} onChange={v => setSecuritySettings(p => ({ ...p, minPasswordLength: v }))} type="number" />
-                <TextField label="أقصى محاولات دخول فاشلة" value={securitySettings.loginAttempts} onChange={v => setSecuritySettings(p => ({ ...p, loginAttempts: v }))} type="number" />
-                <TextField label="مهلة انتهاء الجلسة (دقيقة)" value={securitySettings.sessionTimeout} onChange={v => setSecuritySettings(p => ({ ...p, sessionTimeout: v }))} type="number" />
-              </div>
-              <ToggleSetting label="إلزام تغيير كلمة المرور الأولى" desc="يُطلب من المستخدمين الجدد تغيير كلمة المرور" value={securitySettings.forcePasswordChange} onChange={v => setSecuritySettings(p => ({ ...p, forcePasswordChange: v }))} />
-            </FormCard>
-            <FormCard title="قيود الوصول">
-              <TextField label="قائمة IP المسموح بها (اختياري)" value={securitySettings.ipWhitelist} onChange={v => setSecuritySettings(p => ({ ...p, ipWhitelist: v }))} hint="أدخل عناوين IP مفصولة بفاصلة" />
-            </FormCard>
-          </div>
-        );
-      case 'notifications':
-        return (
-          <div className="space-y-8">
-            <FormCard title="قنوات الإشعار">
-              <ToggleSetting label="تفعيل إشعارات SMS" desc="إرسال تذكيرات عبر الرسائل النصية" value={notifSettings.smsEnabled} onChange={v => setNotifSettings(p => ({ ...p, smsEnabled: v }))} />
-              <ToggleSetting label="إشعارات البريد الإلكتروني" desc="إرسال إشعارات عبر الإيميل" value={notifSettings.emailNotif} onChange={v => setNotifSettings(p => ({ ...p, emailNotif: v }))} />
-            </FormCard>
-            <FormCard title="تذكيرات المواعيد">
-              <ToggleSetting label="تفعيل تذكير المواعيد" desc="إرسال تذكير للمرضى قبل موعدهم" value={notifSettings.appointmentReminder} onChange={v => setNotifSettings(p => ({ ...p, appointmentReminder: v }))} />
-              <TextField label="مدة التذكير المسبق (ساعة)" value={notifSettings.reminderHours} onChange={v => setNotifSettings(p => ({ ...p, reminderHours: v }))} type="number" />
-            </FormCard>
-            <FormCard title="تنبيهات المخزون والتقارير">
-              <ToggleSetting label="تنبيه المخزون المنخفض" desc="إشعار عند وصول الصنف للحد الأدنى" value={notifSettings.lowStockAlert} onChange={v => setNotifSettings(p => ({ ...p, lowStockAlert: v }))} />
-              <ToggleSetting label="إرسال التقرير اليومي بالإيميل" desc="ملخص يومي يُرسل للإدارة صباحاً" value={notifSettings.dailyReportEmail} onChange={v => setNotifSettings(p => ({ ...p, dailyReportEmail: v }))} />
-            </FormCard>
-          </div>
-        );
-      case 'automation':
-        return (
-          <div className="space-y-8">
-            <FormCard title="الاتصال الفوري">
-              <ToggleSetting label="تفعيل WebSocket للتحديثات الفورية" desc="تحديث قوائم الانتظار والبيانات بدون إعادة تحميل" value={autoSettings.wsEnabled} onChange={v => setAutoSettings(p => ({ ...p, wsEnabled: v }))} />
-              <ToggleSetting label="التهيئة الديناميكية" desc="تطبيق تغييرات الإعدادات فوراً بدون إعادة تشغيل" value={autoSettings.dynamicConfig} onChange={v => setAutoSettings(p => ({ ...p, dynamicConfig: v }))} />
-              <ToggleSetting label="تحديث قائمة الانتظار تلقائياً" desc="تحديث آلي كل 30 ثانية" value={autoSettings.autoQueueUpdate} onChange={v => setAutoSettings(p => ({ ...p, autoQueueUpdate: v }))} />
-            </FormCard>
-            <FormCard title="حدود API والتكامل">
-              <TextField label="معدل طلبات API (per minute)" value={autoSettings.apiRateLimit} onChange={v => setAutoSettings(p => ({ ...p, apiRateLimit: v }))} type="number" />
-              <TextField label="Webhook URL (اختياري)" value={autoSettings.webhookUrl} onChange={v => setAutoSettings(p => ({ ...p, webhookUrl: v }))} hint="للتكامل مع أنظمة خارجية" />
-            </FormCard>
-            <FormCard title="وضع الصيانة">
-              <ToggleSetting label="تفعيل وضع الصيانة" desc="تعطيل وصول المستخدمين مؤقتاً ماعدا المسؤول" value={autoSettings.maintenanceMode} onChange={v => setAutoSettings(p => ({ ...p, maintenanceMode: v }))} />
-              {autoSettings.maintenanceMode && (
-                <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl flex items-center gap-3">
-                  <AlertCircle className="w-5 h-5 text-amber-500" />
-                  <p className="text-amber-800 font-bold text-sm">النظام في وضع الصيانة. لن يتمكن المستخدمون العاديون من الدخول.</p>
-                </div>
-              )}
-            </FormCard>
-          </div>
-        );
-      default:
-        return null;
+  const toggleDay = (day: string) => {
+    const days = settings.workingDays.includes(day)
+      ? settings.workingDays.filter(d => d !== day)
+      : [...settings.workingDays, day];
+    update('workingDays', days);
+  };
+
+  const handleSave = () => {
+    try {
+      localStorage.setItem(LS_KEY, JSON.stringify(settings));
+      setSaved(true); setHasChanges(false);
+      setTimeout(() => setSaved(false), 3000);
+      toast('تم حفظ الإعدادات بنجاح ✓');
+    } catch {
+      toast('فشل حفظ الإعدادات', 'error');
     }
   };
 
+  const handleReset = () => {
+    setSettings(DEFAULTS);
+    localStorage.removeItem(LS_KEY);
+    setHasChanges(false);
+    toast('تمت إعادة تعيين جميع الإعدادات للقيم الافتراضية', 'info');
+  };
+
+  const inp = "w-full bg-gray-50 rounded-xl p-3 text-sm font-medium border-none outline-none focus:ring-2 focus:ring-primary/20";
+  const sel = "w-full bg-gray-50 rounded-xl p-3 text-sm font-medium border-none outline-none";
+
   return (
     <Sidebar>
-      <div className="space-y-8">
+      <div className="space-y-7">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3"><Settings className="w-8 h-8 text-primary" />إعدادات النظام</h1>
-            <p className="text-gray-500 mt-1 uppercase text-[10px] font-black tracking-[0.2em] text-primary/40">System Configuration Manager</p>
+            <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3"><Settings className="w-8 h-8 text-primary" />الإعدادات</h1>
+            <p className="text-gray-500 mt-1 text-xs font-bold uppercase tracking-widest">System Configuration & Preferences</p>
           </div>
-          <div className="flex gap-4">
-            <button className="flex items-center gap-2 px-5 py-3 bg-white border border-gray-200 rounded-2xl font-bold text-gray-600 text-sm hover:bg-gray-50 shadow-sm"><RefreshCw className="w-4 h-4" />إعادة تعيين</button>
-            <button onClick={handleSave} className={cn("flex items-center gap-2 px-6 py-3 rounded-2xl font-bold text-sm shadow-lg transition-all",
-              saved ? "bg-emerald-500 text-white shadow-emerald-500/25" : "bg-primary text-white shadow-primary/25 hover:scale-105"
+          <div className="flex items-center gap-3">
+            {hasChanges && (
+              <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-xs text-amber-600 font-bold bg-amber-50 px-3 py-1.5 rounded-xl border border-amber-100">
+                تعديلات غير محفوظة
+              </motion.span>
+            )}
+            <button onClick={handleReset} className="px-5 py-2.5 bg-white border border-gray-200 text-gray-600 rounded-2xl font-bold text-sm flex items-center gap-2 hover:bg-gray-50 transition-all shadow-sm">
+              <RefreshCw className="w-4 h-4" />إعادة تعيين
+            </button>
+            <button onClick={handleSave} className={cn("px-6 py-2.5 rounded-2xl font-bold text-sm flex items-center gap-2 transition-all shadow-lg",
+              saved ? "bg-emerald-500 text-white shadow-emerald-500/25" : "bg-primary text-white shadow-primary/25 hover:bg-primary/95"
             )}>
-              {saved ? <CheckCircle className="w-5 h-5" /> : <Save className="w-5 h-5" />}
+              {saved ? <CheckCircle className="w-4 h-4" /> : <Save className="w-4 h-4" />}
               {saved ? 'تم الحفظ!' : 'حفظ الإعدادات'}
             </button>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-8 items-start">
-          <div className="bg-white rounded-3xl border shadow-sm p-4 space-y-2 sticky top-28">
-            {configCategories.map((cat, i) => (
-              <motion.button initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.07 }} key={cat.id} onClick={() => setActiveCategory(cat.id)}
-                className={cn("w-full flex items-center gap-4 p-4 rounded-2xl text-right transition-all",
-                  activeCategory === cat.id ? "bg-primary text-white shadow-lg shadow-primary/25" : "hover:bg-gray-50 text-gray-600"
-                )}
-              >
-                <div className={cn("p-2.5 rounded-xl transition-all", activeCategory === cat.id ? "bg-white/20" : "bg-gray-100 group-hover:bg-primary/10")}>
-                  <cat.icon className={cn("w-5 h-5", activeCategory === cat.id ? "text-white" : "text-primary")} />
-                </div>
+        <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-8">
+          <div className="space-y-2">
+            {sections.map(s => (
+              <button key={s.id} onClick={() => setActiveSection(s.id)}
+                className={cn("w-full text-right flex items-center gap-4 px-5 py-4 rounded-2xl transition-all",
+                  activeSection === s.id ? "bg-primary text-white shadow-lg shadow-primary/20" : "bg-white border text-gray-600 hover:border-primary/20 hover:text-primary shadow-sm"
+                )}>
+                <s.icon className="w-5 h-5 shrink-0" />
                 <div className="text-right">
-                  <p className="font-black text-sm tracking-tight leading-none">{cat.name}</p>
-                  <p className={cn("text-[10px] mt-1 font-medium italic truncate max-w-[160px]", activeCategory === cat.id ? "text-white/70" : "text-gray-400")}>{cat.desc}</p>
+                  <p className="font-black text-sm">{s.label}</p>
+                  <p className={cn("text-[10px] font-medium mt-0.5 line-clamp-1", activeSection === s.id ? "text-white/60" : "text-gray-400")}>{s.desc}</p>
                 </div>
-              </motion.button>
+              </button>
             ))}
           </div>
 
-          <motion.div key={activeCategory} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-            className="bg-white rounded-3xl border shadow-sm p-8 min-h-[500px]"
-          >
-            {renderContent()}
-          </motion.div>
+          <div className="bg-white rounded-3xl border shadow-sm p-8 space-y-0">
+            <AnimatePresence mode="wait">
+              {activeSection === 'clinic' && (
+                <motion.div key="clinic" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
+                  <h2 className="text-2xl font-black text-gray-900 mb-6 italic tracking-tighter">بيانات المنشأة</h2>
+                  <SettingRow label="اسم العيادة / المركز الصحي">
+                    <input value={settings.clinicName} onChange={e => update('clinicName', e.target.value)} className={cn(inp, "w-72")} />
+                  </SettingRow>
+                  <SettingRow label="عنوان العيادة">
+                    <input value={settings.clinicAddress} onChange={e => update('clinicAddress', e.target.value)} className={cn(inp, "w-72")} />
+                  </SettingRow>
+                  <SettingRow label="رقم الهاتف">
+                    <input value={settings.clinicPhone} onChange={e => update('clinicPhone', e.target.value)} dir="ltr" className={cn(inp, "w-56")} />
+                  </SettingRow>
+                  <SettingRow label="البريد الإلكتروني">
+                    <input value={settings.clinicEmail} onChange={e => update('clinicEmail', e.target.value)} dir="ltr" className={cn(inp, "w-72")} />
+                  </SettingRow>
+                </motion.div>
+              )}
+              {activeSection === 'system' && (
+                <motion.div key="system" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
+                  <h2 className="text-2xl font-black text-gray-900 mb-6 italic tracking-tighter">إعدادات النظام</h2>
+                  <SettingRow label="المنطقة الزمنية">
+                    <select value={settings.timezone} onChange={e => update('timezone', e.target.value)} className={cn(sel, "w-52")}>
+                      <option value="Asia/Aden">Asia/Aden (Yemen)</option>
+                      <option value="Asia/Riyadh">Asia/Riyadh (KSA)</option>
+                      <option value="Asia/Dubai">Asia/Dubai (UAE)</option>
+                      <option value="Africa/Cairo">Africa/Cairo (Egypt)</option>
+                    </select>
+                  </SettingRow>
+                  <SettingRow label="اللغة الافتراضية">
+                    <select value={settings.language} onChange={e => update('language', e.target.value)} className={cn(sel, "w-48")}>
+                      <option value="ar">العربية</option>
+                      <option value="en">English</option>
+                    </select>
+                  </SettingRow>
+                  <SettingRow label="صيغة التاريخ">
+                    <select value={settings.dateFormat} onChange={e => update('dateFormat', e.target.value)} className={cn(sel, "w-48")}>
+                      <option value="dd/mm/yyyy">DD/MM/YYYY</option>
+                      <option value="mm/dd/yyyy">MM/DD/YYYY</option>
+                      <option value="yyyy-mm-dd">YYYY-MM-DD</option>
+                    </select>
+                  </SettingRow>
+                  <SettingRow label="العملة">
+                    <select value={settings.currency} onChange={e => update('currency', e.target.value)} className={cn(sel, "w-36")}>
+                      <option value="YER">YER - ريال يمني</option>
+                      <option value="SAR">SAR - ريال سعودي</option>
+                      <option value="USD">USD - دولار</option>
+                    </select>
+                  </SettingRow>
+                  <SettingRow label="حجم الخط">
+                    <select value={settings.fontSize} onChange={e => update('fontSize', e.target.value)} className={cn(sel, "w-40")}>
+                      <option value="small">صغير</option>
+                      <option value="medium">متوسط</option>
+                      <option value="large">كبير</option>
+                    </select>
+                  </SettingRow>
+                </motion.div>
+              )}
+              {activeSection === 'appointments' && (
+                <motion.div key="appointments" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
+                  <h2 className="text-2xl font-black text-gray-900 mb-6 italic tracking-tighter">إعدادات المواعيد</h2>
+                  <SettingRow label="مدة الكشف الافتراضية" desc="بالدقائق">
+                    <select value={settings.appointmentDuration} onChange={e => update('appointmentDuration', e.target.value)} className={cn(sel, "w-36")}>
+                      {['15','20','30','45','60'].map(v => <option key={v} value={v}>{v} دقيقة</option>)}
+                    </select>
+                  </SettingRow>
+                  <SettingRow label="وقت بداية الدوام">
+                    <input type="time" value={settings.workingHoursStart} onChange={e => update('workingHoursStart', e.target.value)} className={cn(inp, "w-36")} />
+                  </SettingRow>
+                  <SettingRow label="وقت نهاية الدوام">
+                    <input type="time" value={settings.workingHoursEnd} onChange={e => update('workingHoursEnd', e.target.value)} className={cn(inp, "w-36")} />
+                  </SettingRow>
+                  <SettingRow label="أيام العمل">
+                    <div className="flex gap-1.5 flex-wrap justify-end max-w-sm">
+                      {Object.entries(DAYS_AR).map(([key, label]) => (
+                        <button key={key} onClick={() => toggleDay(key)}
+                          className={cn("px-3 py-1.5 rounded-xl text-xs font-black transition-all",
+                            settings.workingDays.includes(key) ? "bg-primary text-white" : "bg-gray-100 text-gray-400 hover:bg-gray-200"
+                          )}>{label}</button>
+                      ))}
+                    </div>
+                  </SettingRow>
+                </motion.div>
+              )}
+              {activeSection === 'security' && (
+                <motion.div key="security" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
+                  <h2 className="text-2xl font-black text-gray-900 mb-6 italic tracking-tighter">الأمان والحماية</h2>
+                  <SettingRow label="المصادقة الثنائية" desc="حماية إضافية عند تسجيل الدخول">
+                    <Toggle checked={settings.twoFactorAuth} onChange={() => update('twoFactorAuth', !settings.twoFactorAuth)} />
+                  </SettingRow>
+                  <SettingRow label="مهلة انتهاء الجلسة" desc="بالدقائق">
+                    <select value={settings.sessionTimeout} onChange={e => update('sessionTimeout', e.target.value)} className={cn(sel, "w-36")}>
+                      {['15','30','60','120','240'].map(v => <option key={v} value={v}>{v} دقيقة</option>)}
+                    </select>
+                  </SettingRow>
+                  <SettingRow label="محاولات الدخول الفاشلة" desc="قبل القفل المؤقت">
+                    <select value={settings.loginAttempts} onChange={e => update('loginAttempts', e.target.value)} className={cn(sel, "w-36")}>
+                      {['3','5','10'].map(v => <option key={v} value={v}>{v} محاولات</option>)}
+                    </select>
+                  </SettingRow>
+                  <SettingRow label="الحد الأدنى لكلمة المرور" desc="عدد الأحرف">
+                    <select value={settings.passwordMinLength} onChange={e => update('passwordMinLength', e.target.value)} className={cn(sel, "w-36")}>
+                      {['6','8','10','12'].map(v => <option key={v} value={v}>{v} أحرف</option>)}
+                    </select>
+                  </SettingRow>
+                </motion.div>
+              )}
+              {activeSection === 'notifications' && (
+                <motion.div key="notifications" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
+                  <h2 className="text-2xl font-black text-gray-900 mb-6 italic tracking-tighter">الإشعارات</h2>
+                  <SettingRow label="إشعارات البريد الإلكتروني">
+                    <Toggle checked={settings.emailNotifications} onChange={() => update('emailNotifications', !settings.emailNotifications)} />
+                  </SettingRow>
+                  <SettingRow label="تذكير المواعيد" desc="تنبيه للمريض قبل موعده">
+                    <Toggle checked={settings.appointmentReminder} onChange={() => update('appointmentReminder', !settings.appointmentReminder)} />
+                  </SettingRow>
+                  {settings.appointmentReminder && (
+                    <SettingRow label="مدة التذكير المسبق">
+                      <select value={settings.reminderHoursBefore} onChange={e => update('reminderHoursBefore', e.target.value)} className={cn(sel, "w-40")}>
+                        {['1','2','6','12','24','48'].map(v => <option key={v} value={v}>{v} ساعة</option>)}
+                      </select>
+                    </SettingRow>
+                  )}
+                  <SettingRow label="إشعار نتائج المختبر">
+                    <Toggle checked={settings.labResultsNotification} onChange={() => update('labResultsNotification', !settings.labResultsNotification)} />
+                  </SettingRow>
+                  <SettingRow label="تنبيه نفاد المخزون">
+                    <Toggle checked={settings.stockAlertNotification} onChange={() => update('stockAlertNotification', !settings.stockAlertNotification)} />
+                  </SettingRow>
+                </motion.div>
+              )}
+              {activeSection === 'backup' && (
+                <motion.div key="backup" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
+                  <h2 className="text-2xl font-black text-gray-900 mb-6 italic tracking-tighter">النسخ الاحتياطي</h2>
+                  <SettingRow label="النسخ الاحتياطي التلقائي">
+                    <Toggle checked={settings.autoBackup} onChange={() => update('autoBackup', !settings.autoBackup)} />
+                  </SettingRow>
+                  {settings.autoBackup && (
+                    <>
+                      <SettingRow label="تكرار النسخ الاحتياطي">
+                        <select value={settings.backupFrequency} onChange={e => update('backupFrequency', e.target.value)} className={cn(sel, "w-44")}>
+                          <option value="hourly">كل ساعة</option>
+                          <option value="daily">يومياً</option>
+                          <option value="weekly">أسبوعياً</option>
+                        </select>
+                      </SettingRow>
+                      <SettingRow label="مدة الاحتفاظ" desc="بالأيام">
+                        <select value={settings.backupRetention} onChange={e => update('backupRetention', e.target.value)} className={cn(sel, "w-36")}>
+                          {['7','14','30','90','365'].map(v => <option key={v} value={v}>{v} يوم</option>)}
+                        </select>
+                      </SettingRow>
+                    </>
+                  )}
+                  <SettingRow label="نسخة احتياطية يدوية الآن">
+                    <button onClick={() => toast('تم إنشاء نسخة احتياطية بنجاح ✓')} className="px-5 py-2.5 bg-gray-900 text-white rounded-2xl font-bold text-sm hover:bg-primary transition-all flex items-center gap-2">
+                      <Database className="w-4 h-4" />نسخ الآن
+                    </button>
+                  </SettingRow>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
         </div>
       </div>
     </Sidebar>

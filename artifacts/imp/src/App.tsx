@@ -14,6 +14,7 @@ import UsersPage from "@/pages/UsersPage";
 import SettingsPage from "@/pages/SettingsPage";
 import NotFound from "@/pages/not-found";
 import { FirebaseSeeder } from "@/components/FirebaseSeeder";
+import { ToastProvider } from "@/components/Toast";
 
 function Router() {
   return (
@@ -38,10 +39,12 @@ function Router() {
 
 function App() {
   return (
-    <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-      <FirebaseSeeder />
-      <Router />
-    </WouterRouter>
+    <ToastProvider>
+      <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+        <FirebaseSeeder />
+        <Router />
+      </WouterRouter>
+    </ToastProvider>
   );
 }
 
