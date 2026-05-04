@@ -1,0 +1,367 @@
+{
+  "system_name": "النظام الطبي المتكامل",
+  "version": "1.0.0",
+  "env": "production",
+  "database_config_filter": {
+    "active_profile": "hybrid_local_primary",
+    "profiles": [
+      {
+        "id": "local_network",
+        "type": "local",
+        "engine": "postgresql",
+        "connection": {
+          "host": "localhost",
+          "port": 5432,
+          "database": "medical_center",
+          "user": "medical_user",
+          "password": "secure_password"
+        },
+        "read_only": false
+      },
+      {
+        "id": "cloud_supabase",
+        "type": "cloud",
+        "engine": "postgresql",
+        "connection_string": "${NEXT_PUBLIC_SUPABASE_URL}",
+        "api_key": "${NEXT_PUBLIC_SUPABASE_ANON_KEY}",
+        "read_only": false
+      },
+      {
+        "id": "hybrid_local_primary",
+        "type": "hybrid",
+        "primary": "local_network",
+        "secondary": "cloud_supabase",
+        "routing": {
+          "medical_records": "primary",
+          "financial_transactions": "secondary",
+          "hr_data": "secondary",
+          "appointments": "primary"
+        }
+      }
+    ],
+    "failover": {
+      "enabled": true,
+      "fallback_profile": "local_network",
+      "retry_attempts": 3,
+      "retry_delay_ms": 1000
+    }
+  },
+  "dashboard": {
+    "refresh_interval_seconds": 30,
+    "statistics_cards": [
+      {
+        "id": "total_patients_today",
+        "title": "المرضى اليوم",
+        "type": "count",
+        "color": "#3498db"
+      },
+      {
+        "id": "daily_revenue",
+        "title": "الإيرادات اليومية",
+        "type": "currency",
+        "color": "#27ae60"
+      },
+      {
+        "id": "upcoming_appointments",
+        "title": "المواعيد القادمة",
+        "type": "count",
+        "color": "#e74c3c"
+      },
+      {
+        "id": "occupancy_rate",
+        "title": "نسبة الإشغال",
+        "type": "percentage",
+        "color": "#f39c12"
+      }
+    ],
+    "charts": [
+      {
+        "id": "revenue_chart",
+        "type": "line",
+        "title": "الإيرادات",
+        "periods": ["day", "week", "month"],
+        "default_period": "month"
+      }
+    ],
+    "alerts": {
+      "notify_appointment_in_minutes": [15, 30, 60],
+      "show_critical_alerts": true
+    }
+  },
+  "quick_search": {
+    "enabled": true,
+    "search_fields": ["full_name", "phone", "file_number", "email"],
+    "min_chars": 2,
+    "max_suggestions": 8,
+    "debounce_ms": 300,
+    "actions_on_select": [
+      {
+        "id": "view_record",
+        "label": "عرض السجل الطبي",
+        "icon": "file"
+      },
+      {
+        "id": "new_appointment",
+        "label": "حجز موعد جديد",
+        "icon": "calendar"
+      },
+      {
+        "id": "request_service",
+        "label": "طلب خدمة",
+        "icon": "plus"
+      }
+    ],
+    "auto_create_patient": {
+      "enabled": true,
+      "after_create_action": "new_appointment"
+    }
+  },
+  "appointments": {
+    "enabled": true,
+    "view_modes": ["day", "week", "month"],
+    "time_slot_duration_minutes": 15,
+    "statuses": ["scheduled", "waiting", "completed", "return", "cancelled"],
+    "cost_calculation": {
+      "include_base_service_price": true,
+      "tax_percent": 15,
+      "insurance_discount_percent": 10
+    },
+    "notifications": {
+      "sms": {
+        "enabled": true,
+        "provider": "twilio"
+      },
+      "whatsapp": {
+        "enabled": true,
+        "provider": "whatsapp_business"
+      },
+      "email": {
+        "enabled": true
+      }
+    }
+  },
+  "doctors_services": {
+    "doctor_working_hours": {
+      "saturday": {"start": "09:00", "end": "17:00", "break": "13:00-14:00"},
+      "sunday": {"start": "09:00", "end": "17:00", "break": "13:00-14:00"},
+      "monday": {"start": "09:00", "end": "17:00", "break": "13:00-14:00"},
+      "tuesday": {"start": "09:00", "end": "17:00", "break": "13:00-14:00"},
+      "wednesday": {"start": "09:00", "end": "17:00", "break": "13:00-14:00"},
+      "thursday": {"start": "09:00", "end": "17:00", "break": "13:00-14:00"}
+    },
+    "service_types": [
+      {
+        "id": "consultation",
+        "label": "استشارة",
+        "duration_minutes": 15,
+        "base_price": 50,
+        "free_follow_up_days": 7
+      },
+      {
+        "id": "follow_up",
+        "label": "متابعة",
+        "duration_minutes": 10,
+        "base_price": 30,
+        "free_follow_up_days": 0
+      }
+    ],
+    "commission": {
+      "enabled": true,
+      "type": "percentage",
+      "value": 40
+    }
+  },
+  "queue": {
+    "enabled": true,
+    "auto_refresh_seconds": 10,
+    "display_mode": "list",
+    "waiting_time_estimation": {
+      "algorithm": "weighted_average",
+      "average_consultation_minutes": 15
+    },
+    "priorities": [
+      {
+        "level": 1,
+        "label": "عادي",
+        "weight": 1.0,
+        "color": "#3498db"
+      },
+      {
+        "level": 2,
+        "label": "كبار السن",
+        "weight": 1.5,
+        "color": "#e67e22"
+      },
+      {
+        "level": 3,
+        "label": "حالات خاصة",
+        "weight": 2.0,
+        "color": "#e74c3c"
+      }
+    ]
+  },
+  "clinics": {
+    "enabled": true,
+    "ehr_required_fields": [
+      "chief_complaint",
+      "history",
+      "vitals",
+      "diagnosis",
+      "treatment_plan"
+    ]
+  },
+  "labs": {
+    "enabled": true,
+    "test_categories": [
+      "أمراض الدم",
+      "كيمياء حيوية",
+      "هرمونات",
+      "ميكروبيولوجي",
+      "مناعة"
+    ],
+    "sample_types": ["دم كامل", "مصل", "بول", "براز", "مسحة"],
+    "alert_settings": {
+      "enable_expiry_tracking": true,
+      "low_stock_threshold": 10
+    }
+  },
+  "pharmacy": {
+    "enabled": true,
+    "drug_categories": [
+      "مضادات حيوية",
+      "مسكنات",
+      "أدوية ضغط",
+      "أدوية سكري",
+      "فيتامينات"
+    ],
+    "drug_forms": ["أقراص", "كبسولات", "شراب", "حقن"],
+    "pricing": {
+      "default_markup_percent": 15,
+      "insurance_markup_percent": 10
+    },
+    "controlled_substances": ["ترامادول", "بريجابالين", "كوديين"],
+    "alert_settings": {
+      "enable_expiry_tracking": true,
+      "low_stock_threshold": 10
+    }
+  },
+  "hr": {
+    "enabled": true,
+    "leave_types": [
+      {
+        "id": "annual",
+        "label": "إجازة سنوية",
+        "days_per_year": 30
+      },
+      {
+        "id": "sick",
+        "label": "إجازة مرضية",
+        "days_per_year": 10
+      },
+      {
+        "id": "emergency",
+        "label": "إجازة طارئة",
+        "days_per_year": 5
+      }
+    ]
+  },
+  "permissions": {
+    "rbac_enabled": true,
+    "default_roles": [
+      "SuperAdmin",
+      "Admin",
+      "Doctor",
+      "Nurse",
+      "Accountant",
+      "LabTech",
+      "Pharmacist",
+      "Patient"
+    ],
+    "jwt_config": {
+      "expiration_hours": 1,
+      "refresh_token_expiration_days": 7,
+      "secret": "${JWT_SECRET}"
+    },
+    "mfa_enabled": true,
+    "mfa_provider": "google_authenticator"
+  },
+  "finance": {
+    "enabled": true,
+    "currency": "YER",
+    "vat_percent": 15,
+    "payment_methods": [
+      {
+        "id": "cash",
+        "label": "نقداً"
+      },
+      {
+        "id": "card",
+        "label": "بطاقة بنكية"
+      },
+      {
+        "id": "insurance",
+        "label": "تأمين"
+      },
+      {
+        "id": "transfer",
+        "label": "تحويل بنكي"
+      }
+    ]
+  },
+  "reports": {
+    "enabled": true,
+    "available_reports": [
+      {
+        "id": "daily_revenue",
+        "label": "الإيرادات اليومية",
+        "schedule": "daily",
+        "schedule_time": "21:00"
+      },
+      {
+        "id": "monthly_revenue",
+        "label": "الإيرادات الشهرية",
+        "schedule": "monthly",
+        "schedule_time": "21:00"
+      },
+      {
+        "id": "top_drugs",
+        "label": "أكثر الأدوية صرفاً",
+        "schedule": "weekly"
+      },
+      {
+        "id": "doctor_performance",
+        "label": "أداء الأطباء",
+        "schedule": "weekly"
+      },
+      {
+        "id": "lab_performance",
+        "label": "أداء المختبر",
+        "schedule": "weekly"
+      }
+    ],
+    "export_formats": ["pdf", "excel", "csv"]
+  },
+  "global": {
+    "timezone": "Asia/Aden",
+    "languages": ["ar", "en"],
+    "currency": "YER",
+    "country": "Yemen",
+    "working_hours": {
+      "start": "08:00",
+      "end": "22:00"
+    },
+    "holidays": [
+      "2026-01-01",
+      "2026-05-01",
+      "2026-09-26",
+      "2026-10-14",
+      "2026-11-30"
+    ]
+  },
+  "ui": {
+    "theme": "auto",
+    "primary_color": "#2C3E50",
+    "accent_color": "#3498db",
+    "font_family": "Cairo"
+  }
+}
