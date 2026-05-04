@@ -1,30 +1,53 @@
-import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
-import { getFirestore, Firestore } from 'firebase/firestore';
-import { getAuth, Auth } from 'firebase/auth';
-import firebaseConfig from '../firebase-applet-config.json';
+import { initializeApp, getApps, getApp } from 'firebase/app';
+import { getAuth } from 'firebase/auth';
+import { getFirestore as getFirestoreInstance } from 'firebase/firestore';
 
-let app: FirebaseApp | null = null;
-let db: Firestore | null = null;
-let auth: Auth | null = null;
+let authInstance: any = null;
+let dbInstance: any = null;
 
-const getInstances = () => {
-  if (typeof window === 'undefined') return { db: null, auth: null };
-  if (!app) {
-    try {
-      app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
-      db = getFirestore(app, (firebaseConfig as any).firestoreDatabaseId);
-      auth = getAuth(app);
-    } catch (error) {
-      console.error("Error initializing Firebase:", error);
+export const getFirebaseAuth = () => {
+  if (typeof window === 'undefined') return null;
+  
+  if (!authInstance) {
+    const firebaseConfig = {
+      apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+      authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+      projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+      storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+      messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+      appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+    };
+
+    if (!firebaseConfig.apiKey) {
+      return null;
     }
+
+    const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+    authInstance = getAuth(app);
   }
-  return { db, auth };
+  return authInstance;
 };
 
-export const getDb = () => getInstances().db;
-export const getAuthInstance = () => getInstances().auth;
+export const getFirestore = () => {
+  if (typeof window === 'undefined') return null;
 
-export function getFirebase() {
-  const { db, auth } = getInstances();
-  return { db, auth, isMock: !db };
-}
+  if (!dbInstance) {
+    const firebaseConfig = {
+      apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+      authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+      projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+      storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+      messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+      appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+    };
+
+    if (!firebaseConfig.apiKey) return null;
+
+    const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+    dbInstance = getFirestoreInstance(app);
+  }
+  return dbInstance;
+};
+
+export const getAuthInstance = getFirebaseAuth;
+export const getDb = getFirestore;

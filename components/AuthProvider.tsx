@@ -6,14 +6,9 @@ import {
   signInWithPopup, 
   GoogleAuthProvider, 
   signOut, 
-  User,
-  getAuth
+  User 
 } from 'firebase/auth';
-import firebaseConfig from '@/firebase-applet-config.json';
-import { initializeApp, getApps, getApp } from 'firebase/app';
-
-const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
-const auth = getAuth(app);
+import { getFirebaseAuth } from '@/lib/firebase';
 
 interface AuthContextType {
   user: User | null;
@@ -29,6 +24,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const auth = getFirebaseAuth();
+    if (!auth) {
+      const timer = setTimeout(() => setLoading(false), 0);
+      return () => clearTimeout(timer);
+    }
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setUser(user);
       setLoading(false);
@@ -39,6 +39,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signInWithGoogle = async () => {
     const provider = new GoogleAuthProvider();
     try {
+      const auth = getFirebaseAuth();
+      if (!auth) throw new Error('Firebase Auth not initialized. Check your environment variables.');
       await signInWithPopup(auth, provider);
     } catch (error) {
       console.error('Login error:', error);
@@ -47,6 +49,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = async () => {
     try {
+      const auth = getFirebaseAuth();
+      if (!auth) throw new Error('Firebase Auth not initialized');
       await signOut(auth);
     } catch (error) {
       console.error('Logout error:', error);

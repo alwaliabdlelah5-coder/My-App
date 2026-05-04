@@ -1,349 +1,332 @@
 'use client';
 
 import React from 'react';
-import Sidebar from '@/components/Sidebar';
+import Image from 'next/image';
+import { useAuth } from '@/components/AuthProvider';
+import { motion, AnimatePresence } from 'motion/react';
 import { 
+  Activity, 
   Users, 
   Calendar, 
-  TrendingUp, 
-  Activity, 
-  ArrowUpRight, 
-  Clock,
-  ArrowDownRight,
+  Database, 
+  ShieldCheck, 
+  Smartphone, 
+  Laptop, 
+  LogOut,
   Plus,
-  ClipboardList,
-  Stethoscope,
-  Package,
-  CreditCard,
-  ChevronLeft
+  Search,
+  Bell,
+  Menu
 } from 'lucide-react';
-import Link from 'next/link';
-import { motion } from 'motion/react';
-import { cn } from '@/lib/utils';
-import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { useRouter } from 'next/navigation';
 
-const growthData = [
-  { day: 'Sat', patients: 12 },
-  { day: 'Sun', patients: 18 },
-  { day: 'Mon', patients: 15 },
-  { day: 'Tue', patients: 22 },
-  { day: 'Wed', patients: 30 },
-  { day: 'Thu', patients: 25 },
-  { day: 'Fri', patients: 10 },
-];
+export default function DashboardPage() {
+  const { user, loading, logout, signInWithGoogle } = useAuth();
+  const router = useRouter();
 
-import { usePatients } from '@/hooks/use-patients';
-import { useAppointments } from '@/hooks/use-appointments';
-import { useFinance } from '@/hooks/use-finance';
-import { useQueue } from '@/hooks/use-queue';
-import { usePharmacy } from '@/hooks/use-pharmacy';
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-950">
+        <Activity className="w-12 h-12 text-blue-500 animate-spin" />
+      </div>
+    );
+  }
 
-export default function Dashboard() {
-  const { patients: livePatients } = usePatients();
-  const { appointments: liveApps, loading: appsLoading } = useAppointments(new Date().toISOString().split('T')[0]);
-  const { getStats: getFinanceStats } = useFinance();
-  const { queue: liveQueue } = useQueue();
-  const { inventory } = usePharmacy();
-  
-  const finStats = getFinanceStats();
-
-  const stats = [
-    { 
-      name: 'إجمالي المرضى', 
-      value: livePatients.length > 0 ? livePatients.length.toString() : '42', 
-      trend: '+12%', 
-      trendUp: true, 
-      icon: Users,
-      color: 'blue'
-    },
-    { 
-      name: 'مواعيد اليوم', 
-      value: liveApps.length > 0 ? liveApps.length.toString() : '24', 
-      trend: '3 غياب', 
-      trendUp: false, 
-      icon: Calendar,
-      color: 'emerald'
-    },
-    { 
-      name: 'الإيرادات اليومية', 
-      value: `${finStats.income.toLocaleString()} ر.ي`, 
-      trend: '+8%', 
-      trendUp: true, 
-      icon: TrendingUp,
-      color: 'indigo'
-    },
-    { 
-      name: 'حالات في الانتظار', 
-      value: liveQueue.filter(q => q.status === 'waiting').length.toString(), 
-      trend: 'متوسط 15 د', 
-      trendUp: true, 
-      icon: Clock,
-      color: 'orange'
-    },
-  ];
-
-  const upcomingAppointments = liveApps.length > 0 ? liveApps.slice(0, 3).map(app => ({
-    id: app.id,
-    name: app.patientName,
-    time: app.startTime,
-    type: app.type,
-    doctor: app.doctorName,
-    status: app.status === 'waiting' ? 'منتظر' : 'مؤكد'
-  })) : [
-    { id: 1, name: 'سناء علي عبد الله', time: '10:30 ص', type: 'استشارة قلبية', doctor: 'د. خالد محمد', status: 'منتظر' },
-    { id: 2, name: 'محمد حسن صالح', time: '11:00 ص', type: 'فحص عام', doctor: 'د. سارة أحمد', status: 'مؤكد' },
-    { id: 3, name: 'ليلى مرشد السعدي', time: '11:15 ص', type: 'متابعة سكري', doctor: 'د. خالد محمد', status: 'مؤكد' },
-  ];
-
-  const criticalStock = inventory.find(i => i.stock < 15);
+  if (!user) {
+    return <AuthScreen onLogin={signInWithGoogle} />;
+  }
 
   return (
-    <Sidebar>
-      <div className="space-y-12">
-        {/* Welcome Section */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
+    <div className="flex h-screen bg-gray-950 text-white overflow-hidden font-sans">
+      {/* Sidebar */}
+      <nav className="w-20 lg:w-64 bg-gray-900/50 border-r border-white/5 flex flex-col items-center lg:items-start p-4 py-8">
+        <div className="flex items-center gap-3 mb-12 px-2">
+          <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-600/20">
+            <Activity className="w-6 h-6 text-white" />
+          </div>
+          <span className="hidden lg:block font-black text-xl italic tracking-tighter uppercase font-mono">
+            IMP SYSTEM
+          </span>
+        </div>
+
+        <div className="flex-1 w-full space-y-4">
+          <NavItem icon={Plus} label="New Record" active />
+          <NavItem icon={Calendar} label="Appointments" />
+          <NavItem icon={Users} label="Patient Directory" />
+          <NavItem icon={Database} label="Inventory" />
+          <NavItem icon={ShieldCheck} label="Security" />
+        </div>
+
+        <div className="w-full pt-8 border-t border-white/5">
+          <button 
+            onClick={() => logout()}
+            className="w-full flex items-center justify-center lg:justify-start gap-4 p-3 rounded-2xl hover:bg-red-500/10 hover:text-red-400 transition-all group"
           >
-            <h1 className="text-4xl font-black text-gray-900 italic tracking-tighter uppercase font-mono">
-              Command Center
-            </h1>
-            <p className="text-gray-500 mt-1 font-bold italic uppercase text-[10px] tracking-[0.2em]">
-              Welcome back, Dr. Ahmed • Hospital Performance Overview
-            </p>
-          </motion.div>
-          <div className="flex gap-4">
-             <button className="bg-white border-2 border-gray-100 text-gray-900 px-8 py-3 rounded-2xl font-black italic tracking-tighter shadow-sm hover:border-primary transition-all">
-                View Schedule
-             </button>
-             <button className="bg-primary text-white px-8 py-4 rounded-2xl font-black flex items-center gap-2 hover:scale-105 active:scale-95 transition-all shadow-xl shadow-primary/30 italic tracking-tighter">
-                <Plus className="w-5 h-5" />
-                CREATE APPOINTMENT
-             </button>
-          </div>
+            <LogOut className="w-6 h-6" />
+            <span className="hidden lg:block font-bold text-sm italic uppercase tracking-tighter">Sign Out</span>
+          </button>
         </div>
+      </nav>
 
-        {/* Quick Access Hub */}
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6">
-           <QuickAction icon={Users} label="المرضى" href="/patients" color="bg-blue-50 text-blue-600" />
-           <QuickAction icon={Calendar} label="المواعيد" href="/appointments" color="bg-emerald-50 text-emerald-600" />
-           <QuickAction icon={Stethoscope} label="العيادات" href="/clinic" color="bg-purple-50 text-purple-600" />
-           <QuickAction icon={Package} label="المخزون" href="/inventory" color="bg-amber-50 text-amber-600" />
-           <QuickAction icon={Activity} label="المختبر" href="/lab" color="bg-rose-50 text-rose-600" />
-           <QuickAction icon={CreditCard} label="المالية" href="/finance" color="bg-indigo-50 text-indigo-600" />
-        </div>
-
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-          {stats.map((stat, i) => (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.1 }}
-              key={stat.name}
-              className="bg-white p-8 rounded-[2.5rem] border shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all group relative overflow-hidden"
-            >
-              <div className="flex items-start justify-between relative z-10">
-                <div className={cn(
-                  "w-14 h-14 rounded-2xl flex items-center justify-center transition-all group-hover:scale-110",
-                  stat.color === 'blue' ? "bg-blue-50 text-blue-600 shadow-blue-100" :
-                  stat.color === 'emerald' ? "bg-emerald-50 text-emerald-600 shadow-emerald-100" :
-                  stat.color === 'indigo' ? "bg-indigo-50 text-indigo-600 shadow-indigo-100" :
-                  "bg-orange-50 text-orange-600 shadow-orange-100"
-                )}>
-                  <stat.icon className="w-7 h-7" />
-                </div>
-                <div className={cn(
-                  "flex items-center gap-1 text-[10px] font-black italic uppercase px-3 py-1 rounded-full",
-                  stat.trendUp ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"
-                )}>
-                  {stat.trendUp ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
-                  {stat.trend}
-                </div>
-              </div>
-              <div className="mt-8 relative z-10">
-                <h3 className="text-gray-400 font-black text-[10px] uppercase tracking-widest italic">{stat.name}</h3>
-                <p className="text-4xl font-black text-gray-900 mt-1 tracking-tighter italic font-mono">{stat.value}</p>
-              </div>
-              <div className="absolute -bottom-10 -right-10 w-32 h-32 bg-gray-50/50 rounded-full group-hover:bg-primary/5 transition-all" />
-            </motion.div>
-          ))}
-        </div>
-
-        {/* Main Sections Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Upcoming Appointments */}
-          <div className="lg:col-span-2 space-y-8">
-            <div className="bg-white rounded-[2.5rem] border shadow-sm p-8">
-               <div className="flex items-center justify-between mb-8">
-                  <h3 className="text-xl font-black italic tracking-tighter uppercase font-mono">Patient Flow Analytics</h3>
-                  <div className="flex gap-2">
-                     <span className="flex items-center gap-2 text-[10px] font-black text-gray-400 uppercase italic">
-                        <div className="w-2 h-2 rounded-full bg-primary" /> Daily Load
-                     </span>
-                  </div>
-               </div>
-               <div className="h-[300px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                     <BarChart data={growthData}>
-                        <XAxis 
-                          dataKey="day" 
-                          axisLine={false} 
-                          tickLine={false} 
-                          tick={{ fontSize: 10, fontWeight: 900, fill: '#94a3b8' }} 
-                        />
-                        <Tooltip 
-                          cursor={{ fill: 'transparent' }}
-                          content={({ active, payload }) => {
-                            if (active && payload && payload.length) {
-                              return (
-                                <div className="bg-gray-900 text-white p-4 rounded-2xl shadow-xl font-black italic text-xs tracking-widest uppercase animate-in fade-in zoom-in-95 duration-200">
-                                  {payload[0].value} PATIENTS
-                                </div>
-                              );
-                            }
-                            return null;
-                          }}
-                        />
-                        <Bar dataKey="patients" radius={[10, 10, 10, 10]} barSize={40}>
-                           {growthData.map((entry, index) => (
-                              <Cell 
-                                key={`cell-${index}`} 
-                                fill={index === 4 ? '#2563eb' : '#f1f5f9'} 
-                                className="transition-all hover:opacity-80"
-                              />
-                           ))}
-                        </Bar>
-                     </BarChart>
-                  </ResponsiveContainer>
-               </div>
-            </div>
-
-            <div className="bg-white rounded-3xl border shadow-sm overflow-hidden">
-              <div className="p-6 border-b flex items-center justify-between">
-                <h2 className="font-bold text-xl flex items-center gap-2">
-                  <Calendar className="w-5 h-5 text-primary" />
-                  المواعيد القادمة (اليوم)
-                </h2>
-                <button className="text-primary font-bold text-sm hover:underline">عرض الكل</button>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-right">
-                  <thead>
-                    <tr className="bg-gray-50 text-gray-400 text-xs font-bold uppercase tracking-wider">
-                      <th className="px-6 py-4">اسم المريض</th>
-                      <th className="px-6 py-4 text-xs">نوع الزيارة</th>
-                      <th className="px-6 py-4">الوقت</th>
-                      <th className="px-6 py-4">الطبيب</th>
-                      <th className="px-6 py-4 text-center">الحالة</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y text-sm">
-                    {upcomingAppointments.map((app) => (
-                      <tr key={app.id} className="hover:bg-gray-50 transition-colors group">
-                        <td className="px-6 py-4 font-bold text-gray-900">{app.name}</td>
-                        <td className="px-6 py-4 text-gray-500">{app.type}</td>
-                        <td className="px-6 py-4 font-medium text-primary">{app.time}</td>
-                        <td className="px-6 py-4 text-gray-600">{app.doctor}</td>
-                        <td className="px-6 py-4 text-center">
-                          <div className={cn(
-                            "mx-auto w-fit px-3 py-1 rounded-full text-xs font-bold",
-                            app.status === 'منتظر' ? "bg-orange-50 text-orange-600" : "bg-emerald-50 text-emerald-600"
-                          )}>
-                            {app.status}
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+      {/* Main Content */}
+      <main className="flex-1 flex flex-col overflow-hidden">
+        {/* Header */}
+        <header className="h-20 bg-gray-900/30 border-b border-white/5 flex items-center justify-between px-8 backdrop-blur-xl">
+          <div className="flex items-center gap-6 max-w-xl w-full">
+            <div className="relative w-full">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+              <input 
+                type="text" 
+                placeholder="PROBE PATIENT DATABASE..." 
+                className="w-full bg-white/5 border border-white/10 rounded-2xl py-2.5 pl-12 pr-4 text-xs font-mono tracking-widest focus:outline-none focus:border-blue-500/50 transition-all uppercase"
+              />
             </div>
           </div>
 
-          {/* Side Panels */}
-          <div className="space-y-8">
-            {/* Real-time Queue */}
-            <div className="bg-white rounded-3xl border shadow-sm overflow-hidden">
-              <div className="p-6 border-b flex items-center justify-between bg-orange-50/50">
-                <h2 className="font-bold flex items-center gap-2 text-xs uppercase tracking-widest italic text-orange-600">
-                  <ClipboardList className="w-4 h-4" />
-                  قائمة الانتظار
-                </h2>
-                <span className="bg-orange-500 text-white text-[8px] px-2 py-0.5 rounded-full font-black uppercase tracking-wider italic">{liveQueue.filter(q => q.status === 'waiting').length} CASES</span>
-              </div>
-              <div className="p-4 space-y-3">
-                {liveQueue.filter(q => q.status === 'waiting').slice(0, 4).map((item, i) => (
-                  <div key={item.id} className="flex items-center gap-4 p-4 hover:bg-gray-50 rounded-[1.5rem] transition-all cursor-pointer border border-transparent hover:border-gray-100 group">
-                    <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center text-xs font-black text-gray-400 group-hover:bg-primary group-hover:text-white transition-all">
-                      {String(i + 1).padStart(2, '0')}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-black text-gray-900 truncate tracking-tighter italic leading-none">{item.patientName}</p>
-                      <p className="text-[10px] text-gray-400 font-bold uppercase mt-1">Status: {item.status}</p>
-                    </div>
-                  </div>
-                ))}
-                <div className="pt-4 border-t border-dashed">
-                  <Link href="/queue">
-                    <button className="w-full py-3 text-[10px] font-black text-gray-400 uppercase tracking-widest hover:text-primary transition-colors flex items-center justify-center gap-2 group">
-                      MANAGE FULL QUEUE
-                      <ChevronLeft className="w-3 h-3 group-hover:translate-x-[-2px] transition-transform" />
-                    </button>
-                  </Link>
-                </div>
-              </div>
-            </div>
-
-            {/* Smart Insights */}
-            <div className="bg-gray-900 rounded-[2.5rem] p-8 text-white space-y-4 relative overflow-hidden group">
-              <div className="relative z-10">
-                <div className="flex items-center gap-3">
-                  <div className="p-3 bg-white/5 rounded-2xl">
-                    <Activity className="w-6 h-6 text-primary" />
-                  </div>
-                  <h3 className="font-black italic tracking-tighter text-xl">Stock Alert</h3>
-                </div>
-                <p className="text-sm text-white/40 leading-relaxed mt-6 font-bold uppercase tracking-tight italic">
-                  {criticalStock ? (
-                    <>Critical shortage detected for <span className="text-primary">&quot;{criticalStock.name}&quot;</span>. Only {criticalStock.stock} units remaining.</>
+          <div className="flex items-center gap-6 uppercase">
+            <button className="relative w-10 h-10 flex items-center justify-center text-gray-400 hover:text-white transition-all">
+               <Bell className="w-5 h-5" />
+               <span className="absolute top-2 right-2 w-2 h-2 bg-blue-500 rounded-full" />
+            </button>
+            <div className="flex items-center gap-3 pl-6 border-l border-white/10">
+               <div className="text-right hidden sm:block">
+                  <p className="text-[10px] font-bold text-blue-400 leading-none">MEDICAL STAFF</p>
+                  <p className="text-xs font-black italic tracking-tighter mt-1">{user.displayName}</p>
+               </div>
+               <div className="w-10 h-10 rounded-xl bg-gray-800 border border-white/10 overflow-hidden shadow-2xl relative">
+                  {user.photoURL ? (
+                    <Image 
+                      src={user.photoURL} 
+                      alt="" 
+                      fill
+                      className="object-cover" 
+                      referrerPolicy="no-referrer"
+                    />
                   ) : (
-                    <>Inventory levels are within safe parameters. No critical shortages detected.</>
+                    <div className="w-full h-full flex items-center justify-center bg-blue-500/10 text-blue-400">
+                      <Users className="w-5 h-5" />
+                    </div>
                   )}
-                </p>
-                <div className="flex gap-2 mt-8">
-                  <span className="text-[10px] bg-rose-500/20 text-rose-500 px-3 py-1 rounded-lg font-black uppercase italic tracking-widest border border-rose-500/30">Immediate Action</span>
-                  <span className="text-[10px] bg-white/5 text-white/40 px-3 py-1 rounded-lg font-black uppercase italic tracking-widest border border-white/5">PROXIMITY</span>
-                </div>
-                <Link href="/pharmacy" className="block mt-10">
-                  <button className="w-full py-4 bg-white text-gray-900 rounded-2xl font-black italic tracking-tighter uppercase text-sm hover:bg-primary hover:text-white transition-all shadow-xl shadow-black/20">
-                    Restock Inventory
-                  </button>
-                </Link>
-              </div>
-              <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 blur-[100px] rounded-full group-hover:bg-primary/20 transition-all duration-700" />
+               </div>
             </div>
           </div>
+        </header>
+
+        {/* Console / Dash */}
+        <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
+           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              {/* Status Board */}
+              <div className="lg:col-span-2 space-y-8">
+                 <div className="flex items-end justify-between px-2">
+                    <div>
+                       <h2 className="text-3xl font-black italic tracking-tighter uppercase">Operations Console</h2>
+                       <p className="text-[10px] font-bold text-gray-500 uppercase tracking-[0.3em] mt-2 italic">Real-time Clinical Synchronization • Node 042</p>
+                    </div>
+                    <div className="flex gap-2">
+                       <PlatformIndicator icon={Smartphone} label="Android" status="online" />
+                       <PlatformIndicator icon={Laptop} label="Windows" status="online" />
+                    </div>
+                 </div>
+
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <StatCard label="Daily Patients" value="128" trend="+12%" icon={Users} color="blue" />
+                    <StatCard label="Applet Performance" value="99.9%" trend="stable" icon={Activity} color="green" />
+                 </div>
+
+                 <div className="bg-white/5 border border-white/10 rounded-[2.5rem] p-8 relative overflow-hidden group">
+                    <div className="flex items-center justify-between mb-8">
+                       <h3 className="text-sm font-black italic tracking-tighter uppercase flex items-center gap-3">
+                          <Database className="w-4 h-4 text-blue-400" />
+                          Subsurface Database Sync
+                       </h3>
+                       <span className="text-[10px] font-mono text-gray-500">LAST SYNC: 14:04:42</span>
+                    </div>
+                    
+                    <div className="space-y-4">
+                       <SyncItem label="Firebase Authentication" status="CONNECTED" />
+                       <SyncItem label="Supabase PostgreSQL" status="ACTIVE" />
+                       <SyncItem label="Flyway Migrations" status="SUCCESS" />
+                       <SyncItem label="Capacitor Native Bridge" status="READY" />
+                    </div>
+
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 blur-[50px] -translate-y-1/2 translate-x-1/2 group-hover:bg-blue-500/20 transition-all" />
+                 </div>
+              </div>
+
+              {/* Sidebar Info */}
+              <div className="space-y-8">
+                 <div className="bg-blue-600 rounded-[2.5rem] p-8 text-white relative overflow-hidden group shadow-2xl shadow-blue-600/20">
+                    <h3 className="font-black italic tracking-tighter uppercase text-xl mb-4">Infrastructure Status</h3>
+                    <p className="text-blue-100 text-xs font-medium leading-relaxed mb-8">
+                       Your platform is automatically provisioned for Android, Windows, and Web.
+                       All data is synchronized across endpoints automatically.
+                    </p>
+                    <button className="w-full bg-white text-blue-600 rounded-2xl py-3 font-black italic tracking-tighter uppercase text-xs hover:scale-105 active:scale-95 transition-all">
+                       Deploy Updates
+                    </button>
+                    <div className="absolute -bottom-8 -right-8 w-32 h-32 bg-white/10 rotate-45 group-hover:scale-110 transition-all" />
+                 </div>
+
+                 <div className="bg-gray-900 border border-white/5 rounded-[2.5rem] p-8">
+                    <h3 className="text-xs font-black italic tracking-tighter uppercase mb-6 text-gray-400">System Logs</h3>
+                    <div className="space-y-4 font-mono text-[10px]">
+                       <p className="text-gray-500 italic"><span className="text-blue-400 font-bold">[14:04:12]</span> SYS_INIT :: MULTI-PLATFORM STACK READY</p>
+                       <p className="text-gray-500 italic"><span className="text-green-400 font-bold">[14:04:31]</span> SUPA_DB :: CONNECTION PERSISTED</p>
+                       <p className="text-gray-500 italic"><span className="text-yellow-400 font-bold">[14:04:42]</span> FLYWAY :: MIGRATION COMPLETE</p>
+                       <p className="text-gray-500 italic"><span className="text-purple-400 font-bold">[14:04:55]</span> FIRE_AUTH :: SESSION VERIFIED</p>
+                    </div>
+                 </div>
+              </div>
+           </div>
         </div>
-      </div>
-    </Sidebar>
+      </main>
+    </div>
   );
 }
 
-function QuickAction({ icon: Icon, label, href, color }: { icon: any, label: string, href: string, color: string }) {
+function NavItem({ icon: Icon, label, active = false }: { icon: any, label: string, active?: boolean }) {
   return (
-    <Link href={href}>
-      <motion.button
-        whileHover={{ scale: 1.05, y: -5 }}
-        whileTap={{ scale: 0.95 }}
-        className="w-full bg-white p-6 rounded-[2.5rem] shadow-sm flex flex-col items-center gap-4 transition-all hover:border-primary/20 hover:shadow-xl hover:shadow-primary/5 group border border-transparent"
-      >
-        <div className={cn("w-14 h-14 rounded-2xl flex items-center justify-center transition-all group-hover:scale-110", color)}>
-          <Icon className="w-7 h-7" />
-        </div>
-        <span className="text-sm font-black text-gray-900 italic tracking-tighter uppercase">{label}</span>
-      </motion.button>
-    </Link>
+    <button className={`w-full flex items-center justify-center lg:justify-start gap-4 p-3 rounded-2xl transition-all group ${active ? 'bg-blue-600 text-white shadow-xl shadow-blue-600/20' : 'text-gray-500 hover:bg-white/5 hover:text-white'}`}>
+      <Icon className="w-6 h-6" />
+      <span className={`hidden lg:block font-extrabold text-sm italic uppercase tracking-tighter ${active ? 'opacity-100' : 'opacity-60 group-hover:opacity-100'}`}>
+        {label}
+      </span>
+    </button>
+  );
+}
+
+function PlatformIndicator({ icon: Icon, label, status }: { icon: any, label: string, status: string }) {
+  return (
+    <div className="bg-white/5 border border-white/10 rounded-xl py-1 px-3 flex items-center gap-2">
+       <div className={`w-1.5 h-1.5 rounded-full ${status === 'online' ? 'bg-green-500' : 'bg-red-500'} animate-pulse`} />
+       <Icon className="w-3 h-3 text-gray-500" />
+       <span className="text-[10px] font-black italic uppercase tracking-tighter text-gray-400">{label}</span>
+    </div>
+  );
+}
+
+function StatCard({ label, value, trend, icon: Icon, color }: { label: string, value: string, trend: string, icon: any, color: 'blue' | 'green' }) {
+  const colorMap = {
+    blue: 'text-blue-400 bg-blue-500/10 border-blue-500/20',
+    green: 'text-green-400 bg-green-500/10 border-green-500/20'
+  };
+
+  return (
+    <div className="bg-white/5 border border-white/10 rounded-[2.5rem] p-6 hover:border-white/20 transition-all group">
+       <div className="flex items-center justify-between mb-4">
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center border ${colorMap[color]}`}>
+             <Icon className="w-5 h-5" />
+          </div>
+          <span className={`text-[10px] font-black italic uppercase ${trend.startsWith('+') ? 'text-green-400' : 'text-gray-500'}`}>
+             {trend}
+          </span>
+       </div>
+       <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">{label}</p>
+       <p className="text-3xl font-black italic tracking-tighter">{value}</p>
+    </div>
+  );
+}
+
+function SyncItem({ label, status }: { label: string, status: string }) {
+  return (
+    <div className="flex items-center justify-between group">
+       <span className="text-xs font-bold text-gray-400 uppercase tracking-tighter">{label}</span>
+       <div className="flex items-center gap-2">
+          <div className="h-px w-24 bg-white/5 group-hover:bg-blue-500/20 transition-all" />
+          <span className="text-[10px] font-black italic tracking-tighter text-blue-400 uppercase">{status}</span>
+       </div>
+    </div>
+  );
+}
+
+function AuthScreen({ onLogin }: { onLogin: () => void }) {
+  return (
+    <div className="min-h-screen grid grid-cols-1 md:grid-cols-2 bg-gray-950 font-sans">
+      {/* Platform Branding */}
+      <div className="hidden md:flex flex-col justify-between p-16 border-r border-white/5 relative overflow-hidden">
+         <div className="relative z-10">
+            <div className="flex items-center gap-4">
+               <div className="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center shadow-xl shadow-blue-600/20">
+                  <Activity className="w-7 h-7 text-white" />
+               </div>
+               <h1 className="text-4xl font-black italic tracking-tighter uppercase font-mono">IMP SYSTEM</h1>
+            </div>
+            <p className="text-[10px] font-bold text-gray-500 uppercase tracking-[0.4em] mt-4 ml-1">Integrated Medical Platform</p>
+         </div>
+
+         <div className="relative z-10 space-y-12">
+            <AuthBenefit 
+              title="Multi-Platform Core" 
+              desc="Compiled for Web, Android, and Windows from a single TypeScript origin."
+              icon={Smartphone}
+            />
+            <AuthBenefit 
+              title="Autonomous Infra" 
+              desc="Automatic Firebase and Supabase orchestration with Flyway lifecycle management."
+              icon={Database}
+            />
+            <div className="flex gap-6 pt-10 border-t border-white/5">
+                <Laptop className="w-6 h-6 text-gray-700" />
+                <Smartphone className="w-6 h-6 text-gray-700" />
+                <ShieldCheck className="w-6 h-6 text-gray-700" />
+            </div>
+         </div>
+
+         {/* Backdrop */}
+         <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_30%,_#1e3a8a_0%,_transparent_50%)] opacity-20" />
+      </div>
+
+      {/* Login Portal */}
+      <div className="flex items-center justify-center p-8">
+         <div className="max-w-md w-full space-y-12">
+            <div>
+               <h2 className="text-5xl font-black italic tracking-tighter uppercase mb-4">Command Portal</h2>
+               <p className="text-xs text-gray-500 font-medium leading-relaxed uppercase tracking-widest leading-loose">
+                  Initialize medical session. Automatic database provisioning will trigger upon verification.
+               </p>
+            </div>
+
+            <button 
+              onClick={onLogin}
+              className="w-full h-16 bg-white text-gray-900 rounded-3xl font-black italic tracking-tighter uppercase flex items-center justify-center gap-4 hover:bg-blue-500 hover:text-white transition-all shadow-2xl shadow-blue-600/10 active:scale-95 group"
+            >
+               <div className="w-8 h-8 bg-gray-900 rounded-xl flex items-center justify-center group-hover:bg-white transition-all">
+                  <svg viewBox="0 0 24 24" className="w-5 h-5 fill-white group-hover:fill-blue-600">
+                    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" />
+                    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
+                  </svg>
+               </div>
+               Continue to Dashboard
+            </button>
+
+            <div className="pt-12 grid grid-cols-2 gap-4">
+                <div className="p-6 bg-white/5 border border-white/5 rounded-[2rem] opacity-40">
+                   <p className="text-[10px] font-black italic text-blue-400 uppercase mb-2">Android</p>
+                   <p className="text-[10px] font-bold text-gray-600 uppercase">Awaiting Build</p>
+                </div>
+                <div className="p-6 bg-white/5 border border-white/5 rounded-[2rem] opacity-40">
+                   <p className="text-[10px] font-black italic text-blue-400 uppercase mb-2">Windows</p>
+                   <p className="text-[10px] font-bold text-gray-600 uppercase">Awaiting Build</p>
+                </div>
+            </div>
+         </div>
+      </div>
+    </div>
+  );
+}
+
+function AuthBenefit({ title, desc, icon: Icon }: { title: string, desc: string, icon: any }) {
+  return (
+    <div className="flex gap-6 max-w-sm">
+       <div className="w-12 h-12 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-center shrink-0">
+          <Icon className="w-6 h-6 text-blue-400" />
+       </div>
+       <div>
+          <h4 className="font-black italic tracking-tighter uppercase text-white">{title}</h4>
+          <p className="text-xs text-gray-500 font-medium leading-relaxed mt-2">{desc}</p>
+       </div>
+    </div>
   );
 }

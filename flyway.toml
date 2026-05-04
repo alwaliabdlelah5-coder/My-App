@@ -1,0 +1,6 @@
+[flyway]
+url = "${SUPABASE_PROD_DB_URL}"
+user = "${SUPABASE_PROD_DB_USER}"
+password = "${SUPABASE_PROD_DB_PASSWORD}"
+locations = ["filesystem:supabase/migrations"]
+connectRetries = 10

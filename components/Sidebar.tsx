@@ -31,6 +31,8 @@ interface NavItem {
   icon: React.ElementType;
 }
 
+import Image from 'next/image';
+
 const navItems: NavItem[] = [
   { name: 'لوحة القيادة', href: '/', icon: LayoutDashboard },
   { name: 'المرضى', href: '/patients', icon: Users },
@@ -155,9 +157,15 @@ export default function Sidebar({ children }: { children: React.ReactNode }) {
                 "flex items-center gap-3 p-3 rounded-xl text-gray-600 hover:bg-white hover:shadow-sm transition-all border border-transparent hover:border-gray-100",
               )}
             >
-              <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center border border-primary/20 overflow-hidden">
+              <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center border border-primary/20 overflow-hidden relative">
                 {user?.photoURL ? (
-                  <img src={user.photoURL} alt={user.displayName || ''} className="w-full h-full object-cover" />
+                  <Image 
+                    src={user.photoURL} 
+                    alt={user.displayName || ''} 
+                    fill
+                    className="object-cover" 
+                    referrerPolicy="no-referrer"
+                  />
                 ) : (
                   <Users className="w-5 h-5 text-primary" />
                 )}

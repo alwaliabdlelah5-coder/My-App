@@ -1,6 +1,5 @@
 {
-  "name": "النظام الطبي المتكامل (IMP)",
-  "description": "نظام طبي متكامل لإدارة العيادات، المختبرات، الصيدليات، والمؤسسات الطبية مع ميزات البحث الذكي وإدارة المواعيد والسجلات الطبية.",
-  "requestFramePermissions": [],
-  "majorCapabilities": []
+  "name": "Integrated Medical Platform",
+  "description": "A cross-platform medical system supporting Android, Windows, and Web. Integrated with Firebase and Supabase.",
+  "requestFramePermissions": ["camera", "microphone", "geolocation"]
 }

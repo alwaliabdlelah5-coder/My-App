@@ -1,28 +1,17 @@
 @import "tailwindcss";
+@import "tw-animate-css";
 
-@theme {
-  --font-cairo: var(--font-cairo), ui-sans-serif, system-ui, sans-serif;
+:root {
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+  --primary: #0f172a;
 }
 
-@layer base {
-  :root {
-    --primary: #2563eb;
-    --primary-foreground: #ffffff;
-    --secondary: #f1f5f9;
-    --secondary-foreground: #0f172a;
-    --accent: #f8fafc;
-    --accent-foreground: #1e293b;
-    --destructive: #ef4444;
-    --destructive-foreground: #ffffff;
-    --muted: #f1f5f9;
-    --muted-foreground: #64748b;
-    --border: #e2e8f0;
-    --input: #e2e8f0;
-    --ring: #2563eb;
-    --radius: 0.75rem;
-  }
+body {
+  font-family: var(--font-sans);
+  background-color: #f8fafc;
 }
 
-.font-cairo {
-  font-family: var(--font-cairo);
+.font-mono {
+  font-family: var(--font-mono);
 }

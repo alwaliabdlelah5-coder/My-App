@@ -1,28 +1,32 @@
-import type { Metadata } from 'next';
-import { Cairo } from 'next/font/google';
-import './globals.css';
+import { Inter, JetBrains_Mono } from 'next/font/google';
+import "./globals.css";
+import { AuthProvider } from "@/components/AuthProvider";
 
-const cairo = Cairo({
-  subsets: ['arabic', 'latin'],
-  variable: '--font-cairo',
-  weight: ['200', '300', '400', '500', '600', '700', '800', '900'],
+const inter = Inter({
+  subsets: ['latin'],
+  variable: '--font-sans',
 });
 
-export const metadata: Metadata = {
-  title: 'النظام الطبي المتكامل (IMP)',
-  description: 'نظام طبي متكامل لإدارة المؤسسات الطبية',
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ['latin'],
+  variable: '--font-mono',
+});
+
+export const metadata = {
+  title: "IMP - Integrated Medical Platform",
+  description: "Advanced medical command center for Web, Android, and Windows.",
 };
 
-import { FirebaseSeeder } from '@/components/FirebaseSeeder';
-import { AuthProvider } from '@/components/AuthProvider';
-
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
-    <html lang="ar" dir="rtl" className={`${cairo.variable}`}>
-      <body className="font-cairo antialiased bg-gray-50 text-gray-900" suppressHydrationWarning>
+    <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable}`}>
+      <body className="antialiased overflow-x-hidden">
         <AuthProvider>
           {children}
-          <FirebaseSeeder />
         </AuthProvider>
       </body>
     </html>
