@@ -29,9 +29,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const timer = setTimeout(() => setLoading(false), 0);
       return () => clearTimeout(timer);
     }
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setUser(user);
       setLoading(false);
+
+      if (user) {
+        try {
+          const idToken = await user.getIdToken();
+          await fetch('/api/auth/sync', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ idToken }),
+          });
+        } catch (error) {
+          console.error('Failed to sync user with server:', error);
+        }
+      }
     });
     return () => unsubscribe();
   }, []);
