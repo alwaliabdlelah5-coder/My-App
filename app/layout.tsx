@@ -14,13 +14,16 @@ export const metadata: Metadata = {
 };
 
 import { FirebaseSeeder } from '@/components/FirebaseSeeder';
+import { AuthProvider } from '@/components/AuthProvider';
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="ar" dir="rtl" className={`${cairo.variable}`}>
       <body className="font-cairo antialiased bg-gray-50 text-gray-900" suppressHydrationWarning>
-        {children}
-        <FirebaseSeeder />
+        <AuthProvider>
+          {children}
+          <FirebaseSeeder />
+        </AuthProvider>
       </body>
     </html>
   );

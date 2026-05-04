@@ -47,10 +47,33 @@ const navItems: NavItem[] = [
   { name: 'الإعدادات', href: '/settings', icon: Settings },
 ];
 
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/components/AuthProvider';
+
 export default function Sidebar({ children }: { children: React.ReactNode }) {
+  const { user, loading, logout } = useAuth();
+  const router = useRouter();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [searchFocused, setSearchFocused] = useState(false);
   const pathname = usePathname();
+
+  React.useEffect(() => {
+    if (!loading && !user && pathname !== '/auth') {
+      router.push('/auth');
+    }
+  }, [user, loading, router, pathname]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <Activity className="w-12 h-12 text-primary animate-spin" />
+      </div>
+    );
+  }
+
+  if (!user && pathname !== '/auth') {
+    return null;
+  }
 
   const searchResults = [
     { id: 1, name: 'سناء علي عبد الله', file: 'P-1001', phone: '777123456' },
@@ -132,17 +155,28 @@ export default function Sidebar({ children }: { children: React.ReactNode }) {
                 "flex items-center gap-3 p-3 rounded-xl text-gray-600 hover:bg-white hover:shadow-sm transition-all border border-transparent hover:border-gray-100",
               )}
             >
-              <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center border border-primary/20">
-                <Users className="w-5 h-5 text-primary" />
+              <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center border border-primary/20 overflow-hidden">
+                {user?.photoURL ? (
+                  <img src={user.photoURL} alt={user.displayName || ''} className="w-full h-full object-cover" />
+                ) : (
+                  <Users className="w-5 h-5 text-primary" />
+                )}
               </div>
               {!isCollapsed && (
                 <div className="flex flex-col">
-                  <span className="text-sm font-black text-gray-900 truncate max-w-[120px] tracking-tight">د. أحمد محمد</span>
-                  <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider italic">مدير النظام</span>
+                  <span className="text-sm font-black text-gray-900 truncate max-w-[120px] tracking-tight">
+                    {user?.displayName || 'مستخدم النظام'}
+                  </span>
+                  <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider italic">
+                    {user?.email || 'Medical Staff'}
+                  </span>
                 </div>
               )}
             </Link>
-            <button className="w-full flex items-center gap-3 p-3 rounded-xl text-rose-500 hover:bg-rose-50 transition-all font-black text-sm italic tracking-tighter">
+            <button 
+              onClick={() => logout()}
+              className="w-full flex items-center gap-3 p-3 rounded-xl text-rose-500 hover:bg-rose-50 transition-all font-black text-sm italic tracking-tighter"
+            >
               <LogOut className="w-5 h-5 flex-shrink-0" />
               {!isCollapsed && <span className="whitespace-nowrap">تسجيل الخروج</span>}
             </button>

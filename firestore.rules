@@ -41,13 +41,26 @@ service cloud.firestore {
       return data.keys().hasAll(['patientName', 'doctorName', 'date', 'startTime', 'status'])
         && data.patientName is string && data.patientName.size() <= 256
         && data.doctorName is string && data.doctorName.size() <= 256
-        && data.status in ['confirmed', 'waiting', 'cancelled', 'completed'];
+        && data.status in ['confirmed', 'waiting', 'cancelled', 'completed']
+        && data.date is string && data.date.matches('^\\d{4}-\\d{2}-\\d{2}$')
+        && data.startTime is string && data.startTime.matches('^\\d{2}:\\d{2}$')
+        // Ensure appointment is in the future
+        && timestamp(data.date + 'T' + data.startTime + ':00Z') >= request.time;
     }
 
     match /appointments/{appointmentId} {
-      allow get, list: if true; // Relaxed for development
-      allow create: if true; // Relaxed for seeder
-      allow update: if true; // Relaxed for development
+      allow get, list: if isSignedIn();
+      allow create: if isSignedIn() && isValidAppointment(incoming());
+      allow update: if isSignedIn() && isValidAppointment(incoming()) && (
+        // Allow updating other fields if status is unchanged
+        (incoming().status == existing().status) || 
+        // Restricted status transitions: confirmed/waiting -> cancelled/completed
+        (
+          existing().status in ['confirmed', 'waiting'] && 
+          incoming().status in ['cancelled', 'completed'] && 
+          incoming().diff(existing()).affectedKeys().hasOnly(['status'])
+        )
+      );
       allow delete: if isAdmin();
     }
 
