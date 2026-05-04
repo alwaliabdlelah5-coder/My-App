@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, use } from 'react';
 import Sidebar from '@/components/Sidebar';
 import { 
   Activity, 
@@ -16,13 +16,16 @@ import {
   Download,
   AlertCircle,
   Clock,
-  Target
+  Target,
+  ArrowRight
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '@/lib/utils';
 import { 
   LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, AreaChart, Area 
 } from 'recharts';
+import { usePatient } from '@/hooks/use-patient';
+import Link from 'next/link';
 
 const vitalData = [
   { time: '08:00', bp: 120, heartRate: 72, temp: 36.6 },
@@ -49,8 +52,43 @@ const labResults = [
   { test: 'Blood Sugar (Fasting)', date: '2024-05-01', result: '95 mg/dL', status: 'Pending' },
 ];
 
-export default function PatientRecordPage() {
+export default function PatientRecordPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
+  const { patient, loading } = usePatient(id);
   const [activeTab, setActiveTab] = useState<'overview' | 'vitals' | 'history' | 'meds' | 'labs'>('overview');
+
+  if (loading) {
+    return (
+      <Sidebar>
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="animate-pulse flex flex-col items-center gap-4">
+            <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center">
+              <Activity className="w-8 h-8 text-primary animate-spin" />
+            </div>
+            <p className="text-gray-400 font-bold uppercase text-[10px] tracking-widest">Loading Patient Record...</p>
+          </div>
+        </div>
+      </Sidebar>
+    );
+  }
+
+  if (!patient) {
+    return (
+      <Sidebar>
+        <div className="bg-white rounded-[2.5rem] border shadow-sm p-20 text-center space-y-6">
+           <AlertCircle className="w-20 h-20 text-rose-500 mx-auto" />
+           <h2 className="text-3xl font-black italic tracking-tighter">Patient Not Found</h2>
+           <Link href="/app/patients">
+             <button className="bg-primary text-white px-8 py-4 rounded-2xl font-black italic uppercase text-xs">
+               Back to Patient List
+             </button>
+           </Link>
+        </div>
+      </Sidebar>
+    );
+  }
+
+  const age = patient.birthDate ? new Date().getFullYear() - new Date(patient.birthDate).getFullYear() : '??';
 
   const tabs = [
     { id: 'overview', label: 'نظرة عامة', icon: FileText },
@@ -63,16 +101,26 @@ export default function PatientRecordPage() {
   return (
     <Sidebar>
       <div className="space-y-8 pb-12">
+        {/* Back Button */}
+        <Link href="/app/patients" className="inline-flex items-center gap-2 text-gray-400 hover:text-primary transition-colors font-bold uppercase text-[10px] tracking-widest group">
+          <div className="p-2 bg-gray-100 rounded-lg group-hover:bg-primary/10 transition-all">
+            <ArrowRight className="w-4 h-4 translate-x-0 group-hover:translate-x-1 transition-transform" />
+          </div>
+          العودة لقائمة المرضى
+        </Link>
+
         {/* Patient Profile Header */}
         <div className="bg-white rounded-[2.5rem] border shadow-sm p-10 flex flex-col md:flex-row items-center gap-10">
-           <div className="w-32 h-32 rounded-[2rem] bg-indigo-50 flex items-center justify-center text-indigo-500 text-5xl font-black italic border-4 border-white shadow-xl shadow-indigo-100">
-             S
+           <div className="w-32 h-32 rounded-[2rem] bg-primary/5 flex items-center justify-center text-primary text-5xl font-black italic border-4 border-white shadow-xl shadow-primary/5">
+             {patient.name[0]}
            </div>
-           <div className="flex-1 space-y-4 text-center md:text-right">
+           <div className="flex-1 space-y-4 text-center md:text-right w-full">
               <div className="flex flex-col md:flex-row items-center md:items-start justify-between gap-4">
-                 <div>
-                    <h1 className="text-4xl font-black text-gray-900 italic tracking-tighter">سناء علي عبد الله</h1>
-                    <p className="text-gray-400 font-bold uppercase text-[10px] tracking-[0.2em] mt-1 italic">File Number: P-1001 • Age: 28 • Male</p>
+                 <div className="text-right">
+                    <h1 className="text-4xl font-black text-gray-900 italic tracking-tighter">{patient.name}</h1>
+                    <p className="text-gray-400 font-bold uppercase text-[10px] tracking-[0.2em] mt-1 italic">
+                      File Number: {patient.fileNumber} • Age: {age} • {patient.gender}
+                    </p>
                  </div>
                  <div className="flex items-center gap-3">
                     <button className="flex items-center gap-2 px-6 py-3 bg-gray-900 text-white rounded-2xl font-black italic text-xs shadow-lg shadow-gray-900/10 hover:bg-primary transition-all">

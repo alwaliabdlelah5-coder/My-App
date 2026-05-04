@@ -44,10 +44,19 @@ export default function PatientsPage() {
 
   const displayPatients = loading ? initialPatients : (livePatients.length > 0 ? livePatients : initialPatients);
 
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 8;
+
   const filteredPatients = displayPatients.filter(p => 
     p.name.includes(searchQuery) || 
     p.phone.includes(searchQuery) || 
     p.fileNumber.includes(searchQuery)
+  );
+
+  const totalPages = Math.ceil(filteredPatients.length / itemsPerPage);
+  const currentPatients = filteredPatients.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
   );
 
   const handleSave = async () => {
@@ -119,7 +128,7 @@ export default function PatientsPage() {
             </button>
             <div className="h-6 w-px bg-gray-200 mx-2 hidden md:block" />
             <div className="flex items-center gap-1 text-xs text-gray-400 font-medium">
-              عرض {filteredPatients.length} من {displayPatients.length} مريض
+              عرض {currentPatients.length} من {filteredPatients.length} مريض
             </div>
           </div>
         </div>
@@ -140,13 +149,18 @@ export default function PatientsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y text-sm">
-                {filteredPatients.map((patient, i) => (
+                {currentPatients.map((patient, i) => (
                   <motion.tr 
                     initial={{ opacity: 0, x: 20 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: i * 0.05 }}
                     key={patient.id} 
-                    className="hover:bg-gray-50/80 transition-colors group"
+                    className="hover:bg-indigo-50/50 transition-colors group cursor-pointer"
+                    onClick={(e) => {
+                      // Prevent click if clicking the more button
+                      if ((e.target as HTMLElement).closest('button')) return;
+                      window.location.href = `/app/patients/${patient.id}/record`;
+                    }}
                   >
                     <td className="px-6 py-4 font-mono text-xs text-primary font-bold">{patient.fileNumber}</td>
                     <td className="px-6 py-4">
@@ -189,14 +203,16 @@ export default function PatientsPage() {
                       </div>
                     </td>
                     <td className="px-6 py-4 text-left">
-                      <Link href={`/app/patients/${patient.id}/record`}>
-                        <button className="p-3 bg-indigo-50 text-indigo-600 rounded-xl font-black italic text-[10px] tracking-widest uppercase hover:bg-indigo-600 hover:text-white transition-all">
-                          Record
+                      <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Link href={`/app/patients/${patient.id}/record`}>
+                          <button className="px-4 py-2 bg-primary text-white rounded-xl text-[10px] font-bold uppercase tracking-widest hover:scale-105 active:scale-95 transition-all">
+                            View Record
+                          </button>
+                        </Link>
+                        <button className="p-2 hover:bg-gray-200 rounded-lg transition-colors">
+                          <MoreVertical className="w-4 h-4 text-gray-400" />
                         </button>
-                      </Link>
-                      <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors ml-2">
-                        <MoreVertical className="w-4 h-4 text-gray-400" />
-                      </button>
+                      </div>
                     </td>
                   </motion.tr>
                 ))}
@@ -206,12 +222,20 @@ export default function PatientsPage() {
           
           {/* Pagination */}
           <div className="p-6 border-t flex items-center justify-between bg-gray-50/30">
-            <span className="text-xs text-gray-500 font-medium tracking-tight">الصفحة 1 من 1</span>
+            <span className="text-xs text-gray-500 font-medium tracking-tight">الصفحة {currentPage} من {Math.max(1, totalPages)}</span>
             <div className="flex items-center gap-2">
-              <button disabled className="p-2 rounded-xl border bg-white disabled:opacity-50 text-gray-400 cursor-not-allowed">
+              <button 
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage >= totalPages}
+                className="p-2 rounded-xl border bg-white disabled:opacity-50 text-gray-600 hover:bg-gray-50 transition-all shadow-sm"
+              >
                 <ChevronRight className="w-4 h-4" />
               </button>
-              <button disabled className="p-2 rounded-xl border bg-white disabled:opacity-50 text-gray-400 cursor-not-allowed">
+              <button 
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage <= 1}
+                className="p-2 rounded-xl border bg-white disabled:opacity-50 text-gray-600 hover:bg-gray-50 transition-all shadow-sm"
+              >
                 <ChevronLeft className="w-4 h-4" />
               </button>
             </div>
