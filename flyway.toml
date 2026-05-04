@@ -1,4 +1,5 @@
 [flyway]
+# Example URL with SSL: jdbc:postgresql://db.pdopfjznquwthixzdaoq.supabase.co:5432/postgres?sslmode=verify-full&sslrootcert=certs/supabase-ca.crt
 url = "${SUPABASE_PROD_DB_URL}"
 user = "${SUPABASE_PROD_DB_USER}"
 password = "${SUPABASE_PROD_DB_PASSWORD}"
