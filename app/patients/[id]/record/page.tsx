@@ -23,7 +23,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '@/lib/utils';
 import { 
   LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, AreaChart, Area 
-} from 'recharts';
+ } from 'recharts';
 import { usePatient } from '@/hooks/use-patient';
 import Link from 'next/link';
 
@@ -119,7 +119,7 @@ export default function PatientRecordPage({ params }: { params: Promise<{ id: st
                  <div className="text-right">
                     <h1 className="text-4xl font-black text-gray-900 italic tracking-tighter">{patient.name}</h1>
                     <p className="text-gray-400 font-bold uppercase text-[10px] tracking-[0.2em] mt-1 italic">
-                      File Number: {patient.fileNumber} • Age: {age} • {patient.gender}
+                      File Number: {patient.fileNumber} • Age: {age} • {patient.gender === 'male' || patient.gender === 'ذكر' ? 'Male' : 'Female'}
                     </p>
                  </div>
                  <div className="flex items-center gap-3">

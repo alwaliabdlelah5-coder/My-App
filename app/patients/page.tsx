@@ -157,7 +157,7 @@ export default function PatientsPage() {
                     key={patient.id} 
                     className="hover:bg-indigo-50/50 transition-colors group cursor-pointer"
                     onClick={(e) => {
-                      // Prevent click if clicking the more button
+                      // Prevent click if clicking a button
                       if ((e.target as HTMLElement).closest('button')) return;
                       window.location.href = `/app/patients/${patient.id}/record`;
                     }}
