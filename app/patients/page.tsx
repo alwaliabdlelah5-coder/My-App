@@ -191,7 +191,7 @@ export default function PatientsPage() {
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2 text-gray-600">
                         <CalendarIcon className="w-3 h-3 text-gray-400" />
-                        {patient.updatedAt ? (patient.updatedAt.toDate ? patient.updatedAt.toDate().toLocaleDateString('en-GB') : new Date(patient.updatedAt).toLocaleDateString('en-GB')) : '2024-05-01'}
+                        {patient.updatedAt ? new Date(patient.updatedAt).toLocaleDateString('en-GB') : '2024-05-01'}
                       </div>
                     </td>
                     <td className="px-6 py-4">

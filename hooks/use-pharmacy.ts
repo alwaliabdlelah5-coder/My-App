@@ -1,7 +1,5 @@
 import { useState, useEffect } from 'react';
-import { collection, onSnapshot, query, orderBy, updateDoc, doc } from 'firebase/firestore';
-import { getDb } from '@/lib/firebase';
-import { handleFirestoreError, OperationType } from '@/lib/firestore-errors';
+import { supabase } from '@/lib/supabase-client';
 
 export interface Drug {
   id: string;
@@ -18,33 +16,54 @@ export interface Drug {
 export function usePharmacy() {
   const [inventory, setInventory] = useState<Drug[]>([]);
   const [loading, setLoading] = useState(true);
-  const db = getDb();
 
   useEffect(() => {
-    if (!db) return;
-
-    const q = query(collection(db, 'drugs'), orderBy('name', 'asc'));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const data = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as Drug[];
-      setInventory(data);
+    const fetchInventory = async () => {
+      const { data, error } = await supabase
+        .from('drugs')
+        .select('*')
+        .order('name', { ascending: true });
+      
+      if (error) {
+        console.error('Error fetching pharmacy inventory:', error);
+      } else {
+        const mappedData = data.map((item: any) => ({
+          ...item,
+          scientificName: item.scientific_name,
+          stock: item.quantity,
+          expiry: item.expiry_date,
+          price: `${item.price || 0} ر.ي`,
+          brandNames: item.brand_names || [],
+          isNearingExpiry: item.is_nearing_expiry
+        }));
+        setInventory(mappedData as Drug[]);
+      }
       setLoading(false);
-    }, (error) => {
-      handleFirestoreError(error, OperationType.LIST, 'drugs');
-      setLoading(false);
-    });
+    };
 
-    return () => unsubscribe();
-  }, [db]);
+    fetchInventory();
+
+    const channel = supabase
+      .channel('public:drugs_pharmacy')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'drugs' }, () => {
+        fetchInventory();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
 
   const updateStock = async (id: string, newStock: number) => {
-    if (!db) return;
     try {
-      await updateDoc(doc(db, 'drugs', id), { stock: newStock });
+      const { error } = await supabase
+        .from('drugs')
+        .update({ quantity: newStock })
+        .eq('id', id);
+      if (error) throw error;
     } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, `drugs/${id}`);
+      console.error('Error updating stock:', error);
     }
   };
 

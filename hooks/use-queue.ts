@@ -1,7 +1,5 @@
 import { useState, useEffect } from 'react';
-import { collection, onSnapshot, query, orderBy, addDoc, updateDoc, doc, serverTimestamp } from 'firebase/firestore';
-import { getDb } from '@/lib/firebase';
-import { handleFirestoreError, OperationType } from '@/lib/firestore-errors';
+import { supabase } from '@/lib/supabase-client';
 
 export interface QueueItem {
   id: string;
@@ -9,59 +7,76 @@ export interface QueueItem {
   patientName: string;
   doctorName?: string;
   type: string;
-  status: 'waiting' | 'in_progress' | 'completed' | 'cancelled';
-  priority: 'normal' | 'urgent' | 'emergency';
-  startTime?: any;
-  createdAt: any;
+  status: 'waiting' | 'in_consultation' | 'finished' | 'cancelled';
+  priority: number;
+  arrival_time?: string;
 }
 
 export function useQueue() {
   const [queue, setQueue] = useState<QueueItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const db = getDb();
 
   useEffect(() => {
-    if (!db) return;
-
-    const q = query(collection(db, 'queue'), orderBy('createdAt', 'asc'));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const data = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as QueueItem[];
-      setQueue(data);
+    const fetchQueue = async () => {
+      const { data, error } = await supabase
+        .from('clinic_queue')
+        .select(`
+          *,
+          patients (name)
+        `)
+        .order('arrival_time', { ascending: true });
+      
+      if (error) {
+        console.error('Error fetching queue:', error);
+      } else {
+        // Map data if needed
+        const mappedData = data.map((item: any) => ({
+          ...item,
+          patientName: item.patients?.name || 'Unknown'
+        }));
+        setQueue(mappedData as QueueItem[]);
+      }
       setLoading(false);
-    }, (error) => {
-      handleFirestoreError(error, OperationType.LIST, 'queue');
-      setLoading(false);
-    });
+    };
 
-    return () => unsubscribe();
-  }, [db]);
+    fetchQueue();
 
-  const addToQueue = async (data: Omit<QueueItem, 'id' | 'createdAt' | 'status'>) => {
-    if (!db) return;
+    const channel = supabase
+      .channel('public:clinic_queue')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'clinic_queue' }, () => {
+        fetchQueue();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
+  const addToQueue = async (data: Omit<QueueItem, 'id' | 'arrival_time' | 'status'>) => {
     try {
-      await addDoc(collection(db, 'queue'), {
-        ...data,
-        status: 'waiting',
-        createdAt: serverTimestamp()
-      });
+      const { error } = await supabase
+        .from('clinic_queue')
+        .insert([{
+          patient_id: data.patientId,
+          status: 'waiting',
+          priority: data.priority || 0
+        }]);
+      if (error) throw error;
     } catch (error) {
-      handleFirestoreError(error, OperationType.CREATE, 'queue');
+      console.error('Error adding to queue:', error);
     }
   };
 
   const updateQueueStatus = async (id: string, status: QueueItem['status']) => {
-    if (!db) return;
     try {
-      const updateData: any = { status };
-      if (status === 'in_progress') {
-        updateData.startTime = serverTimestamp();
-      }
-      await updateDoc(doc(db, 'queue', id), updateData);
+      const { error } = await supabase
+        .from('clinic_queue')
+        .update({ status })
+        .eq('id', id);
+      if (error) throw error;
     } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, `queue/${id}`);
+      console.error('Error updating queue status:', error);
     }
   };
 

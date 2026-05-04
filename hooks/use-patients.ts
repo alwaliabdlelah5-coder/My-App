@@ -1,7 +1,5 @@
 import { useState, useEffect } from 'react';
-import { collection, onSnapshot, query, orderBy, addDoc, serverTimestamp } from 'firebase/firestore';
-import { getDb } from '@/lib/firebase';
-import { handleFirestoreError, OperationType } from '@/lib/firestore-errors';
+import { supabase } from '@/lib/supabase-client';
 
 export interface Patient {
   id: string;
@@ -12,44 +10,60 @@ export interface Patient {
   gender: string;
   birthDate: string;
   status: 'active' | 'inactive';
-  createdAt?: any;
-  updatedAt?: any;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export function usePatients() {
   const [patients, setPatients] = useState<Patient[]>([]);
   const [loading, setLoading] = useState(true);
-  const db = getDb();
 
   useEffect(() => {
-    if (!db) return;
-
-    const q = query(collection(db, 'patients'), orderBy('createdAt', 'desc'));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const patientData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as Patient[];
-      setPatients(patientData);
+    const fetchPatients = async () => {
+      const { data, error } = await supabase
+        .from('patients')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (error) {
+        console.error('Error fetching patients:', error);
+      } else {
+        const mappedData = data.map((p: any) => ({
+          ...p,
+          name: `${p.first_name} ${p.last_name}`,
+          birthDate: p.date_of_birth,
+          phone: p.phone || '',
+          fileNumber: p.id.slice(0, 8).toUpperCase(), // Mocking file number from ID if not in DB
+          status: 'active' as const
+        }));
+        setPatients(mappedData as Patient[]);
+      }
       setLoading(false);
-    }, (error) => {
-      handleFirestoreError(error, OperationType.LIST, 'patients');
-      setLoading(false);
-    });
+    };
 
-    return () => unsubscribe();
-  }, [db]);
+    fetchPatients();
+
+    // Set up real-time subscription
+    const channel = supabase
+      .channel('public:patients')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'patients' }, () => {
+        fetchPatients();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
 
   const addPatient = async (data: Omit<Patient, 'id' | 'createdAt' | 'updatedAt'>) => {
-    if (!db) return;
     try {
-      await addDoc(collection(db, 'patients'), {
-        ...data,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
-      });
+      const { error } = await supabase
+        .from('patients')
+        .insert([data]);
+      if (error) throw error;
     } catch (error) {
-      handleFirestoreError(error, OperationType.CREATE, 'patients');
+      console.error('Error adding patient:', error);
     }
   };
 

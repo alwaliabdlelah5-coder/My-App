@@ -1,12 +1,12 @@
 
 export const SYSTEM_CONFIG = {
   "database_config_filter": {
-    "active_profile": "cloud_firebase",
+    "active_profile": "cloud_supabase",
     "profiles": [
       {
-        "id": "cloud_firebase",
+        "id": "cloud_supabase",
         "type": "cloud",
-        "engine": "firestore",
+        "engine": "postgresql",
         "status": "primary"
       }
     ]

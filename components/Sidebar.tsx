@@ -158,10 +158,10 @@ export default function Sidebar({ children }: { children: React.ReactNode }) {
               )}
             >
               <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center border border-primary/20 overflow-hidden relative">
-                {user?.photoURL ? (
+                {user?.user_metadata?.avatar_url ? (
                   <Image 
-                    src={user.photoURL} 
-                    alt={user.displayName || ''} 
+                    src={user.user_metadata.avatar_url} 
+                    alt={user.user_metadata.full_name || ''} 
                     fill
                     className="object-cover" 
                     referrerPolicy="no-referrer"
@@ -173,7 +173,7 @@ export default function Sidebar({ children }: { children: React.ReactNode }) {
               {!isCollapsed && (
                 <div className="flex flex-col">
                   <span className="text-sm font-black text-gray-900 truncate max-w-[120px] tracking-tight">
-                    {user?.displayName || 'مستخدم النظام'}
+                    {user?.user_metadata?.full_name || 'مستخدم النظام'}
                   </span>
                   <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider italic">
                     {user?.email || 'Medical Staff'}

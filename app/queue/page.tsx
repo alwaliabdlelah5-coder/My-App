@@ -22,9 +22,9 @@ import { useQueue } from '@/hooks/use-queue';
 
 const initialQueue = [
   { id: 'Q-101', patient: 'يحيى صالح', doctor: 'د. سارة خالد', status: 'waiting', priority: 1, waitingTime: '15 min' },
-  { id: 'Q-102', patient: 'هناء محمد', doctor: 'د. علي يحيى', status: 'in_progress', priority: 2, waitingTime: '45 min' },
+  { id: 'Q-102', patient: 'هناء محمد', doctor: 'د. علي يحيى', status: 'in_consultation', priority: 2, waitingTime: '45 min' },
   { id: 'Q-103', patient: 'عبدالله ناصر', doctor: 'د. سارة خالد', status: 'waiting', priority: 3, waitingTime: '5 min' },
-  { id: 'Q-104', patient: 'منيرة أحمد', doctor: 'د. أحمد المحمدي', status: 'completed', priority: 1, waitingTime: '30 min' },
+  { id: 'Q-104', patient: 'منيرة أحمد', doctor: 'د. أحمد المحمدي', status: 'finished', priority: 1, waitingTime: '30 min' },
   { id: 'Q-105', patient: 'سالم الدوسري', doctor: 'د. علي يحيى', status: 'waiting', priority: 1, waitingTime: '2 min' },
 ];
 
@@ -100,7 +100,7 @@ export default function QueuePage() {
                     <div className="w-8 h-1 bg-blue-200 rounded-full" />
                  </div>
                  <div className="space-y-4">
-                    {filteredQueue.filter(q => q.status === 'in_progress').map((item, i) => (
+                    {filteredQueue.filter(q => q.status === 'in_consultation').map((item, i) => (
                       <QueueItem key={item.id} item={item} active />
                     ))}
                  </div>
@@ -113,7 +113,7 @@ export default function QueuePage() {
                     <div className="w-8 h-1 bg-emerald-200 rounded-full" />
                  </div>
                  <div className="space-y-4">
-                    {filteredQueue.filter(q => q.status === 'completed').map((item, i) => (
+                    {filteredQueue.filter(q => q.status === 'finished').map((item, i) => (
                       <QueueItem key={item.id} item={item} completed />
                     ))}
                  </div>

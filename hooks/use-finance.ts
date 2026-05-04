@@ -1,7 +1,5 @@
 import { useState, useEffect } from 'react';
-import { collection, onSnapshot, query, orderBy, addDoc, serverTimestamp } from 'firebase/firestore';
-import { getDb } from '@/lib/firebase';
-import { handleFirestoreError, OperationType } from '@/lib/firestore-errors';
+import { supabase } from '@/lib/supabase-client';
 
 export interface Transaction {
   id: string;
@@ -10,44 +8,51 @@ export interface Transaction {
   amount: number;
   category: string;
   method: 'cash' | 'card' | 'transfer';
-  date: any;
-  createdAt: any;
+  transaction_date: string;
+  created_at: string;
 }
 
 export function useFinance() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
-  const db = getDb();
 
   useEffect(() => {
-    if (!db) return;
-
-    const q = query(collection(db, 'transactions'), orderBy('createdAt', 'desc'));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const data = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as Transaction[];
-      setTransactions(data);
+    const fetchTransactions = async () => {
+      const { data, error } = await supabase
+        .from('transactions')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (error) {
+        console.error('Error fetching transactions:', error);
+      } else {
+        setTransactions(data as Transaction[]);
+      }
       setLoading(false);
-    }, (error) => {
-      handleFirestoreError(error, OperationType.LIST, 'transactions');
-      setLoading(false);
-    });
+    };
 
-    return () => unsubscribe();
-  }, [db]);
+    fetchTransactions();
 
-  const addTransaction = async (data: Omit<Transaction, 'id' | 'date' | 'createdAt'>) => {
-    if (!db) return;
+    const channel = supabase
+      .channel('public:transactions')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'transactions' }, () => {
+        fetchTransactions();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
+  const addTransaction = async (data: Omit<Transaction, 'id' | 'transaction_date' | 'created_at'>) => {
     try {
-      await addDoc(collection(db, 'transactions'), {
-        ...data,
-        date: new Date().toISOString(),
-        createdAt: serverTimestamp()
-      });
+      const { error } = await supabase
+        .from('transactions')
+        .insert([data]);
+      if (error) throw error;
     } catch (error) {
-      handleFirestoreError(error, OperationType.CREATE, 'transactions');
+      console.error('Error adding transaction:', error);
     }
   };
 

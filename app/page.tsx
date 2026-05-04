@@ -91,12 +91,12 @@ export default function DashboardPage() {
             <div className="flex items-center gap-3 pl-6 border-l border-white/10">
                <div className="text-right hidden sm:block">
                   <p className="text-[10px] font-bold text-blue-400 leading-none">MEDICAL STAFF</p>
-                  <p className="text-xs font-black italic tracking-tighter mt-1">{user.displayName}</p>
+                   <p className="text-xs font-black italic tracking-tighter mt-1">{user.user_metadata?.full_name || user.email}</p>
                </div>
                <div className="w-10 h-10 rounded-xl bg-gray-800 border border-white/10 overflow-hidden shadow-2xl relative">
-                  {user.photoURL ? (
+                  {user.user_metadata?.avatar_url ? (
                     <Image 
-                      src={user.photoURL} 
+                      src={user.user_metadata.avatar_url} 
                       alt="" 
                       fill
                       className="object-cover" 
@@ -143,10 +143,10 @@ export default function DashboardPage() {
                     </div>
                     
                     <div className="space-y-4">
-                       <SyncItem label="Firebase Authentication" status="CONNECTED" />
-                       <SyncItem label="Supabase PostgreSQL" status="ACTIVE" />
-                       <SyncItem label="Flyway Migrations" status="SUCCESS" />
-                       <SyncItem label="Capacitor Native Bridge" status="READY" />
+                       <SyncItem label="Supabase Authentication" status="CONNECTED" />
+                       <SyncItem label="PostgreSQL Instance" status="ACTIVE" />
+                       <SyncItem label="GitHub Actions CI/CD" status="READY" />
+                       <SyncItem label="Vercel Deployment" status="LIVE" />
                     </div>
 
                     <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 blur-[50px] -translate-y-1/2 translate-x-1/2 group-hover:bg-blue-500/20 transition-all" />
@@ -158,8 +158,8 @@ export default function DashboardPage() {
                  <div className="bg-blue-600 rounded-[2.5rem] p-8 text-white relative overflow-hidden group shadow-2xl shadow-blue-600/20">
                     <h3 className="font-black italic tracking-tighter uppercase text-xl mb-4">Infrastructure Status</h3>
                     <p className="text-blue-100 text-xs font-medium leading-relaxed mb-8">
-                       Your platform is automatically provisioned for Android, Windows, and Web.
-                       All data is synchronized across endpoints automatically.
+                       Your platform is automatically provisioned for Android, Windows, and Web via Vercel.
+                       All data is synchronized across endpoints automatically using Supabase.
                     </p>
                     <button className="w-full bg-white text-blue-600 rounded-2xl py-3 font-black italic tracking-tighter uppercase text-xs hover:scale-105 active:scale-95 transition-all">
                        Deploy Updates
@@ -172,8 +172,8 @@ export default function DashboardPage() {
                     <div className="space-y-4 font-mono text-[10px]">
                        <p className="text-gray-500 italic"><span className="text-blue-400 font-bold">[14:04:12]</span> SYS_INIT :: MULTI-PLATFORM STACK READY</p>
                        <p className="text-gray-500 italic"><span className="text-green-400 font-bold">[14:04:31]</span> SUPA_DB :: CONNECTION PERSISTED</p>
-                       <p className="text-gray-500 italic"><span className="text-yellow-400 font-bold">[14:04:42]</span> FLYWAY :: MIGRATION COMPLETE</p>
-                       <p className="text-gray-500 italic"><span className="text-purple-400 font-bold">[14:04:55]</span> FIRE_AUTH :: SESSION VERIFIED</p>
+                       <p className="text-gray-500 italic"><span className="text-yellow-400 font-bold">[14:04:42]</span> VERCEL :: PRODUCTION BUILD LIVE</p>
+                       <p className="text-gray-500 italic"><span className="text-purple-400 font-bold">[14:04:55]</span> GITHUB :: WORKFLOW SUCCESS</p>
                     </div>
                  </div>
               </div>
@@ -262,7 +262,7 @@ function AuthScreen({ onLogin }: { onLogin: () => void }) {
             />
             <AuthBenefit 
               title="Autonomous Infra" 
-              desc="Automatic Firebase and Supabase orchestration with Flyway lifecycle management."
+              desc="Automatic Supabase orchestration with Vercel and GitHub Action lifecycle management."
               icon={Database}
             />
             <div className="flex gap-6 pt-10 border-t border-white/5">

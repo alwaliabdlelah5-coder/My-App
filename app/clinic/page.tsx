@@ -49,7 +49,7 @@ export default function ClinicPage() {
   const { queue, loading: queueLoading } = useQueue();
 
   const displayPatients = patientsLoading ? [] : livePatients;
-  const patientsInQueue = queue.filter(q => q.status === 'waiting' || q.status === 'in_progress');
+  const patientsInQueue = queue.filter(q => q.status === 'waiting' || q.status === 'in_consultation');
 
   const handleSave = () => {
     if (!selectedPatient) return;

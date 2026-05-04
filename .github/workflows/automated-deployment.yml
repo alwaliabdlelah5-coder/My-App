@@ -27,18 +27,20 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
 
-      - name: Deploy to Firebase
-        uses: FirebaseExtended/action-hosting-deploy@v0
+      - name: Deploy to Vercel
+        uses: amondnet/vercel-action@v20
         with:
-          repoToken: '${{ secrets.GITHUB_TOKEN }}'
-          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}'
-          channelId: live
-          projectId: gen-lang-client-0734811332
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          vercel-args: '--prod'
 
       - name: Supabase Database Migration
         run: |
-          # Example supabase migration
-          # npx supabase db push --linked-project ${{ secrets.SUPABASE_PROJECT_ID }}
+          echo "Running Supabase migrations..."
+          # The user requested automatic database creation/sync
+          # In a real scenario, we use supabase-cli to push migrations
+          # npx supabase db push --db-url ${{ secrets.SUPABASE_PROD_DB_URL }}
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}

@@ -1,7 +1,5 @@
 import { useState, useEffect } from 'react';
-import { collection, onSnapshot, query, where, orderBy, addDoc, updateDoc, doc, serverTimestamp } from 'firebase/firestore';
-import { getDb } from '@/lib/firebase';
-import { handleFirestoreError, OperationType } from '@/lib/firestore-errors';
+import { supabase } from '@/lib/supabase-client';
 
 export interface Appointment {
   id: string;
@@ -14,71 +12,81 @@ export interface Appointment {
   duration: number;
   type: string;
   status: 'confirmed' | 'waiting' | 'cancelled' | 'completed';
-  createdAt?: any;
+  createdAt?: string;
 }
 
 export function useAppointments(date?: string) {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
-  const db = getDb();
 
   useEffect(() => {
-    if (!db) return;
-
-    try {
-      let q = query(collection(db, 'appointments'), orderBy('startTime', 'asc'));
+    const fetchAppointments = async () => {
+      let query = supabase
+        .from('appointments')
+        .select(`
+          *,
+          patients (first_name, last_name)
+        `)
+        .order('appointment_date', { ascending: true });
       
       if (date) {
-        q = query(collection(db, 'appointments'), where('date', '==', date), orderBy('startTime', 'asc'));
+        // Handle date filtering in SQL if possible, or filter in JS
+        // For simplicity, let's filter in JS if complex, but let's try SQL
+        query = query.gte('appointment_date', `${date}T00:00:00Z`).lte('appointment_date', `${date}T23:59:59Z`);
       }
 
-      const unsubscribe = onSnapshot(q, (snapshot) => {
-        const data = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        })) as Appointment[];
-        setAppointments(data);
-        setLoading(false);
-      }, (error) => {
-        // Fallback for missing index
-        if (error.message?.includes('index')) {
-          const basicQ = query(collection(db, 'appointments'));
-          onSnapshot(basicQ, (snap) => {
-             const items = snap.docs.map(d => ({ id: d.id, ...d.data() })) as Appointment[];
-             setAppointments(date ? items.filter(a => a.date === date) : items);
-             setLoading(false);
-          });
-        } else {
-          handleFirestoreError(error, OperationType.LIST, 'appointments');
-          setLoading(false);
-        }
-      });
+      const { data, error } = await query;
+      
+      if (error) {
+        console.error('Error fetching appointments:', error);
+      } else {
+        const mappedData = data.map((a: any) => ({
+          ...a,
+          patientName: a.patients ? `${a.patients.first_name} ${a.patients.last_name}` : 'Unknown',
+          date: new Date(a.appointment_date).toISOString().split('T')[0],
+          startTime: new Date(a.appointment_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }),
+          duration: 30, // Default duration
+          doctorName: 'General Doctor' // Default doctor name
+        }));
+        setAppointments(mappedData as Appointment[]);
+      }
+      setLoading(false);
+    };
 
-      return () => unsubscribe();
-    } catch {
-      // Synchronous errors handled by returning void
-    }
-  }, [db, date]);
+    fetchAppointments();
+
+    const channel = supabase
+      .channel('public:appointments')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'appointments' }, () => {
+        fetchAppointments();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [date]);
 
   const addAppointment = async (data: Omit<Appointment, 'id' | 'createdAt'>) => {
-    if (!db) return;
     try {
-      await addDoc(collection(db, 'appointments'), {
-        ...data,
-        status: 'confirmed',
-        createdAt: serverTimestamp()
-      });
+      const { error } = await supabase
+        .from('appointments')
+        .insert([{ ...data, status: 'confirmed' }]);
+      if (error) throw error;
     } catch (error) {
-      handleFirestoreError(error, OperationType.CREATE, 'appointments');
+      console.error('Error adding appointment:', error);
     }
   };
 
   const updateAppointmentStatus = async (id: string, status: Appointment['status']) => {
-    if (!db) return;
     try {
-      await updateDoc(doc(db, 'appointments', id), { status });
+      const { error } = await supabase
+        .from('appointments')
+        .update({ status })
+        .eq('id', id);
+      if (error) throw error;
     } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, `appointments/${id}`);
+      console.error('Error updating appointment:', error);
     }
   };
 

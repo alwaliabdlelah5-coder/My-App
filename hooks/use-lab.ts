@@ -1,38 +1,47 @@
 import { useState, useEffect } from 'react';
-import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
-import { getDb } from '@/lib/firebase';
-import { handleFirestoreError, OperationType } from '@/lib/firestore-errors';
+import { supabase } from '@/lib/supabase-client';
 
 export interface LabTest {
   id: string;
-  name: string;
-  category: string;
-  price: number;
+  test_name: string;
+  category?: string;
+  status: string;
+  ordered_at: string;
+  result?: string;
 }
 
 export function useLab() {
   const [tests, setTests] = useState<LabTest[]>([]);
   const [loading, setLoading] = useState(true);
-  const db = getDb();
 
   useEffect(() => {
-    if (!db) return;
-
-    const q = query(collection(db, 'lab_tests'), orderBy('name', 'asc'));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const data = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as LabTest[];
-      setTests(data);
+    const fetchTests = async () => {
+      const { data, error } = await supabase
+        .from('laboratory_tests')
+        .select('*')
+        .order('ordered_at', { ascending: false });
+      
+      if (error) {
+        console.error('Error fetching lab tests:', error);
+      } else {
+        setTests(data as LabTest[]);
+      }
       setLoading(false);
-    }, (error) => {
-      handleFirestoreError(error, OperationType.LIST, 'lab_tests');
-      setLoading(false);
-    });
+    };
 
-    return () => unsubscribe();
-  }, [db]);
+    fetchTests();
+
+    const channel = supabase
+      .channel('public:laboratory_tests')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'laboratory_tests' }, () => {
+        fetchTests();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
 
   return { tests, loading };
 }

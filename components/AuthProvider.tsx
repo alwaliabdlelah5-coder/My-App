@@ -1,14 +1,8 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { 
-  onAuthStateChanged, 
-  signInWithPopup, 
-  GoogleAuthProvider, 
-  signOut, 
-  User 
-} from 'firebase/auth';
-import { getFirebaseAuth } from '@/lib/firebase';
+import { supabase } from '@/lib/supabase-client';
+import { User, Session } from '@supabase/supabase-js';
 
 interface AuthContextType {
   user: User | null;
@@ -24,37 +18,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const auth = getFirebaseAuth();
-    if (!auth) {
-      const timer = setTimeout(() => setLoading(false), 0);
-      return () => clearTimeout(timer);
-    }
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      setUser(user);
+    // Check active sessions and sets the user
+    const getInitialSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      setUser(session?.user ?? null);
       setLoading(false);
+    };
 
-      if (user) {
-        try {
-          const idToken = await user.getIdToken();
-          await fetch('/api/auth/sync', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ idToken }),
-          });
-        } catch (error) {
-          console.error('Failed to sync user with server:', error);
-        }
-      }
+    getInitialSession();
+
+    // Listen for changes on auth state (logged in, signed out, etc.)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+      setLoading(false);
     });
-    return () => unsubscribe();
+
+    return () => subscription.unsubscribe();
   }, []);
 
   const signInWithGoogle = async () => {
-    const provider = new GoogleAuthProvider();
     try {
-      const auth = getFirebaseAuth();
-      if (!auth) throw new Error('Firebase Auth not initialized. Check your environment variables.');
-      await signInWithPopup(auth, provider);
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: window.location.origin,
+        },
+      });
+      if (error) throw error;
     } catch (error) {
       console.error('Login error:', error);
     }
@@ -62,9 +52,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = async () => {
     try {
-      const auth = getFirebaseAuth();
-      if (!auth) throw new Error('Firebase Auth not initialized');
-      await signOut(auth);
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
     } catch (error) {
       console.error('Logout error:', error);
     }

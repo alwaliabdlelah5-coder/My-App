@@ -9,8 +9,7 @@
     "lint": "eslint .",
     "clean": "next clean",
     "build:android": "next build && npx cap sync android",
-    "build:windows": "next build && npx cap sync windows",
-    "deploy:web": "next build && npx firebase deploy --only hosting"
+    "build:windows": "next build && npx cap sync windows"
   },
   "dependencies": {
     "@capacitor/android": "^8.3.1",
