@@ -7,7 +7,7 @@ environments:
     firebase_project_id: medical-center-dev
   prod:
     flavor: production
-    firebase_project_id: medical-center-prod
+    firebase_project_id: gen-lang-client-0734811332
 platforms:
   android: true
   web: true

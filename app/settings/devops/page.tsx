@@ -87,7 +87,7 @@ export default function SettingsDevOpsPage() {
                  <p><span className="text-gray-500">API_URL:</span> &quot;https://api.medical.ye&quot;</p>
                  <p><span className="text-gray-500">DB_TYPE:</span> &quot;postgresql&quot;</p>
                  <p><span className="text-gray-500">FLAVOR:</span> &quot;production&quot;</p>
-                 <p><span className="text-gray-500">FIREBASE_ID:</span> &quot;medical-center-prod&quot;</p>
+                 <p><span className="text-gray-500">FIREBASE_ID:</span> &quot;gen-lang-client-0734811332&quot;</p>
                  <div className="pt-6">
                     <p className="text-emerald-400 font-bold tracking-widest">{" >>> CONNECTION SECURE "}</p>
                     <p className="text-gray-600">{" >>> FETCHING NEW MIGRATIONS... "}</p>
