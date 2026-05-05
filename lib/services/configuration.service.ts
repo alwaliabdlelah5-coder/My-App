@@ -136,15 +136,34 @@ export class ConfigurationService {
         return false;
       }
 
+      const lastKey = keys[keys.length - 1];
+      if (!lastKey || blockedKeys.has(lastKey)) {
+        console.warn(`[ConfigService] مفتاح إعداد غير آمن أو غير صالح: ${key}`);
+        return false;
+      }
+
       let obj: Record<string, any> = this.config as Record<string, any>;
       for (let i = 0; i < keys.length - 1; i++) {
         const segment = keys[i];
-        if (!Object.prototype.hasOwnProperty.call(obj, segment) || typeof obj[segment] !== 'object' || obj[segment] === null || Array.isArray(obj[segment])) {
+        if (!segment || blockedKeys.has(segment)) {
+          console.warn(`[ConfigService] مقطع مفتاح غير آمن: ${segment}`);
+          return false;
+        }
+
+        const hasOwn = Object.prototype.hasOwnProperty.call(obj, segment);
+        const current = hasOwn ? obj[segment] : undefined;
+        const isPlainObject =
+          typeof current === 'object' &&
+          current !== null &&
+          !Array.isArray(current);
+
+        if (!hasOwn || !isPlainObject) {
           obj[segment] = {};
         }
+
         obj = obj[segment] as Record<string, any>;
       }
-      obj[keys[keys.length - 1]] = value;
+      obj[lastKey] = value;
 
       // حفظ في قاعدة البيانات إن كانت متاحة
       if (this.supabase) {
