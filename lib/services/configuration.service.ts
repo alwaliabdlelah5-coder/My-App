@@ -130,6 +130,12 @@ export class ConfigurationService {
 
       // تحديث التكوين المحلي
       const keys = key.split('.');
+      const blockedKeys = new Set(['__proto__', 'prototype', 'constructor']);
+      if (keys.length === 0 || keys.some((k) => !k || blockedKeys.has(k))) {
+        console.warn(`[ConfigService] مفتاح إعداد غير آمن أو غير صالح: ${key}`);
+        return false;
+      }
+
       let obj = this.config;
       for (let i = 0; i < keys.length - 1; i++) {
         if (!(keys[i] in obj)) obj[keys[i]] = {};
