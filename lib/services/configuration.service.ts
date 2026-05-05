@@ -136,10 +136,13 @@ export class ConfigurationService {
         return false;
       }
 
-      let obj = this.config;
+      let obj: Record<string, any> = this.config as Record<string, any>;
       for (let i = 0; i < keys.length - 1; i++) {
-        if (!(keys[i] in obj)) obj[keys[i]] = {};
-        obj = obj[keys[i]];
+        const segment = keys[i];
+        if (!Object.prototype.hasOwnProperty.call(obj, segment) || typeof obj[segment] !== 'object' || obj[segment] === null || Array.isArray(obj[segment])) {
+          obj[segment] = {};
+        }
+        obj = obj[segment] as Record<string, any>;
       }
       obj[keys[keys.length - 1]] = value;
 
